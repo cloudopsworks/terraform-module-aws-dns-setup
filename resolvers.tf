@@ -37,7 +37,7 @@ resource "aws_route53_resolver_rule" "inbound_rules" {
 resource "aws_route53_resolver_rule_association" "inbound_rules" {
   for_each         = local.shared_resolver_zones
   provider         = aws.default
-  name             = "rra-${replace(each.value.domain_name, ".", "-")}-${var.vpc_id}-${local.system_name}"
+  name             = "rra-${replace(each.value, ".", "-")}-${var.vpc_id}-${local.system_name}"
   resolver_rule_id = var.is_hub ? try(aws_route53_resolver_rule.inbound_rules[each.key].id, null) : var.shared.resolver_rules[each.key].id
   vpc_id           = var.vpc_id
 }

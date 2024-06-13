@@ -34,7 +34,7 @@ resource "aws_ram_principal_association" "inbound_rules" {
   ]...)
   provider           = aws.default
   principal          = each.value.principal
-  resource_share_arn = aws_ram_resource_share.inbound_rules[each.value.zone_key].arn
+  resource_share_arn = aws_ram_resource_share.inbound_rules[each.value].arn
 }
 
 
