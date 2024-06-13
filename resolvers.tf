@@ -20,7 +20,7 @@ resource "aws_route53_resolver_rule" "outbound_rules" {
   tags                 = local.all_tags
 }
 
-module "resolver_endpoints" {
+module "resolver_endpoint_in" {
   count      = var.is_hub ? 1 : 0
   depends_on = [module.dns]
   providers = {
@@ -30,13 +30,36 @@ module "resolver_endpoints" {
   version = "~> 3.0"
 
   create              = true
-  name                = "rslvr-ep-${local.system_name}"
+  name                = "rslvr-in-${local.system_name}"
   direction           = "INBOUND"
   subnet_ids          = var.subnet_ids
   vpc_id              = var.vpc_id
   protocols           = ["DoH", "Do53"]
   tags                = local.all_tags
-  security_group_name = "rslvr-ep-sg-${local.system_name}"
+  security_group_name = "rslvr-in-sg-${local.system_name}"
+  security_group_ingress_cidr_blocks = [
+    var.vpc_cidr_block
+  ]
+  security_group_tags = local.all_tags
+}
+
+module "resolver_endpoint_out" {
+  count      = var.is_hub ? 1 : 0
+  depends_on = [module.dns]
+  providers = {
+    aws = aws.default
+  }
+  source  = "terraform-aws-modules/route53/aws//modules/resolver-endpoints"
+  version = "~> 3.0"
+
+  create              = true
+  name                = "rslvr-out-${local.system_name}"
+  direction           = "OUTBOUND"
+  subnet_ids          = var.subnet_ids
+  vpc_id              = var.vpc_id
+  protocols           = ["DoH", "Do53"]
+  tags                = local.all_tags
+  security_group_name = "rslvr-out-sg-${local.system_name}"
   security_group_ingress_cidr_blocks = [
     var.vpc_cidr_block
   ]
