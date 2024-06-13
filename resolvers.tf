@@ -17,6 +17,7 @@ locals {
   }
 }
 
+# Resolve the inbound domain with inbound resolver through te outbound resolver
 resource "aws_route53_resolver_rule" "inbound_rules" {
   depends_on = [module.resolver_endpoint_out]
   for_each = { for k, v in local.hub_resolver_zones : k => v
@@ -25,7 +26,7 @@ resource "aws_route53_resolver_rule" "inbound_rules" {
   name                 = "rslvr-rr-in-${replace(each.key, ".", "-")}-${local.system_name}"
   domain_name          = each.value.domain_name
   rule_type            = "FORWARD"
-  resolver_endpoint_id = module.resolver_endpoint_in[0].route53_resolver_endpoint_id
+  resolver_endpoint_id = module.resolver_endpoint_out[0].route53_resolver_endpoint_id
   dynamic "target_ip" {
     for_each = module.resolver_endpoint_in[0].route53_resolver_endpoint_ip_addresses
     content {
