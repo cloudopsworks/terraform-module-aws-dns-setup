@@ -9,14 +9,14 @@ locals {
     if var.is_hub == true
   }
 }
-resource "aws_route53_resolver_rule" "outbound_rules" {
+resource "aws_route53_resolver_rule" "inbound_rules" {
   depends_on           = [module.resolver_endpoint_out]
   for_each             = local.resolver_zones
   provider             = aws.default
-  name                 = "rslvr-out-${replace(each.key, ".", "-")}-${local.system_name}"
+  name                 = "rslvr-in-${replace(each.key, ".", "-")}-${local.system_name}"
   domain_name          = each.value.domain_name
   rule_type            = "FORWARD"
-  resolver_endpoint_id = module.resolver_endpoint_out[0].route53_resolver_endpoint_id
+  resolver_endpoint_id = module.resolver_endpoint_in[0].route53_resolver_endpoint_id
   dynamic "target_ip" {
     for_each = module.resolver_endpoint_in[0].route53_resolver_endpoint_ip_addresses
     content {
@@ -24,6 +24,14 @@ resource "aws_route53_resolver_rule" "outbound_rules" {
     }
   }
   tags = local.all_tags
+}
+
+resource "aws_route53_resolver_rule_association" "inbound_rules" {
+  for_each         = local.resolver_zones
+  provider         = aws.default
+  name             = "rslvr-rra-${replace(each.key, ".", "-")}-${var.vpc_id}-${local.system_name}"
+  resolver_rule_id = aws_route53_resolver_rule.inbound_rules[each.key].id
+  vpc_id           = var.vpc_id
 }
 
 module "resolver_endpoint_in" {

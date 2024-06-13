@@ -18,8 +18,8 @@ output "zones" {
 
 output "resolver_rules" {
   value = {
-    outbound = {
-      for rr in aws_route53_resolver_rule.outbound_rules :
+    inbound = {
+      for rr in aws_route53_resolver_rule.inbound_rules :
       rr.name => {
         id                   = rr.id
         arn                  = rr.arn
@@ -31,6 +31,18 @@ output "resolver_rules" {
     }
   }
 }
+
+output "resolver_rules_associations" {
+  value = {
+    for rra in aws_route53_resolver_rule_association.inbound_rules :
+    rra.name => {
+      id               = rra.id
+      resolver_rule_id = rra.resolver_rule_id
+      vpc_id           = rra.vpc_id
+    }
+  }
+}
+
 
 output "resolver_endpoints" {
   value = {
