@@ -35,5 +35,6 @@ module "resolver_endpoints" {
   direction           = "OUTBOUND"
   subnet_ids          = var.subnet_ids
   vpc_id              = var.vpc_id
+  protocols           = ["DoH", "Do53"]
   tags                = local.all_tags
 }
