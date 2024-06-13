@@ -34,12 +34,11 @@ output "resolver_rules" {
 
 output "resolver_rules_associations" {
   value = {
-    for z in local.shared_resolver_zones :
-    aws_route53_resolver_rule_association.inbound_rules[z].name => {
-      id               = aws_route53_resolver_rule_association.inbound_rules[z].id
-      resolver_rule_id = aws_route53_resolver_rule_association.inbound_rules[z].resolver_rule_id
-      vpc_id           = aws_route53_resolver_rule_association.inbound_rules[z].vpc_id
-      domain_name      = z
+    for rra in aws_route53_resolver_rule_association.inbound_rules :
+    rra.name => {
+      id               = rra.id
+      resolver_rule_id = rra.resolver_rule_id
+      vpc_id           = rra.vpc_id
     }
   }
 }
