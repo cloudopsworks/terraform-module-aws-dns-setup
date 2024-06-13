@@ -4,14 +4,24 @@
 #            Distributed Under Apache v2.0 License
 #
 locals {
-  resolver_zones = {
-    for k, v in local.private_zones : k => v
-    if var.is_hub == true
+  hub_resolver_zones = {
+    for k, v in local.private_zones : k => {
+      domain_name = v.domain_name
+    } if var.is_hub == true
   }
+  shared_resolver_zones = {
+    for k, v in local.private_zones : k => {
+      domain_name             = v.domain_name
+      shared_resolver_rule_id = v.shared_resolver_rule_id
+    } if var.is_hub != true
+  }
+  resolver_zones = merge(local.hub_resolver_zones, local.shared_resolver_zones)
 }
+
 resource "aws_route53_resolver_rule" "inbound_rules" {
-  depends_on           = [module.resolver_endpoint_out]
-  for_each             = local.resolver_zones
+  depends_on = [module.resolver_endpoint_out]
+  for_each = { for k, v in local.resolver_zones : k => v
+  if var.is_hub == true }
   provider             = aws.default
   name                 = "rslvr-in-${replace(each.key, ".", "-")}-${local.system_name}"
   domain_name          = each.value.domain_name
@@ -30,7 +40,7 @@ resource "aws_route53_resolver_rule_association" "inbound_rules" {
   for_each         = local.resolver_zones
   provider         = aws.default
   name             = "rslvr-rra-${replace(each.key, ".", "-")}-${var.vpc_id}-${local.system_name}"
-  resolver_rule_id = aws_route53_resolver_rule.inbound_rules[each.key].id
+  resolver_rule_id = var.is_hub ? try(aws_route53_resolver_rule.inbound_rules[each.key].id, null) : each.value.shared_resolver_rule_id
   vpc_id           = var.vpc_id
 }
 
