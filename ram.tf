@@ -39,6 +39,7 @@ resource "aws_ram_principal_association" "inbound_rules" {
 
 
 resource "aws_ram_resource_share_accepter" "inbound_rules" {
+  provider  = aws.default
   for_each  = var.shared.ram_shares
   share_arn = each.value.arn
 }
