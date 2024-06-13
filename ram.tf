@@ -28,11 +28,12 @@ resource "aws_ram_principal_association" "outbound_rules" {
   for_each = merge([for p in var.ram.principals :
     { for k, v in local.resolver_zones : "${k}-${p}" => {
       domain_name = v.domain_name
+      zone_key    = k
       principal   = p
       }
     }
   ]...)
   provider           = aws.default
   principal          = each.value.principal
-  resource_share_arn = aws_ram_resource_share.outbound_rules[each.key].arn
+  resource_share_arn = aws_ram_resource_share.outbound_rules[each.value.zone_key].arn
 }
