@@ -11,7 +11,7 @@ resource "aws_ram_resource_share" "inbound_rules" {
   allow_external_principals = var.ram.allow_external_principals
   tags = merge(
     {
-      Name = "rslvr-${replace(each.key, ".", "-")}-${local.system_name}"
+      Name = "rslvr-${replace(each.value, ".", "-")}-${local.system_name}"
     },
     local.all_tags
   )
@@ -26,9 +26,8 @@ resource "aws_ram_resource_association" "inbound_rules" {
 
 resource "aws_ram_principal_association" "inbound_rules" {
   for_each = merge([for p in var.ram.principals :
-    { for k, v in local.hub_resolver_zones : "${k}-${p}" => {
-      domain_name = v.domain_name
-      zone_key    = k
+    { for d in local.hub_resolver_zones : "${d}-${p}" => {
+      domain_name = d
       principal   = p
       }
     }
