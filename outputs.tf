@@ -36,7 +36,7 @@ output "resolver_endpoints" {
   value = {
     inbound = {
       for re in module.resolver_endpoint_in :
-      re.name => {
+      re.route53_resolver_endpoint_id => {
         id                  = re.route53_resolver_endpoint_id
         arn                 = re.route53_resolver_endpoint_arn
         host_vpc_id         = re.route53_resolver_endpoint_host_vpc_id
@@ -46,7 +46,7 @@ output "resolver_endpoints" {
     }
     outbound = {
       for re in module.resolver_endpoint_out :
-      re.name => {
+      re.route53_resolver_endpoint_id => {
         id                  = re.route53_resolver_endpoint_id
         arn                 = re.route53_resolver_endpoint_arn
         host_vpc_id         = re.route53_resolver_endpoint_host_vpc_id
