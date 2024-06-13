@@ -33,3 +33,18 @@ variable "zones" {
   type    = any
   default = {}
 }
+
+variable "vpc_id" {
+  type    = string
+  default = ""
+}
+
+variable "subnet_ids" {
+  type    = list(string)
+  default = []
+}
+
+variable "ram_share" {
+  type    = bool
+  default = false
+}
