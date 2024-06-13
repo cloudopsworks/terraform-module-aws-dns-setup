@@ -49,7 +49,20 @@ variable "subnet_ids" {
   default = []
 }
 
-variable "ram_share" {
+variable "ram" {
+  type = object({
+    enabled                   = optional(bool, true)
+    allow_external_principals = optional(bool, false)
+    principals                = optional(list(string), [])
+  })
+  default = {
+    enabled                   = false
+    allow_external_principals = false
+    principals                = []
+  }
+}
+
+variable "enable_auto_accept" {
   type    = bool
-  default = false
+  default = true
 }
