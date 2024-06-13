@@ -4,26 +4,25 @@
 #            Distributed Under Apache v2.0 License
 #
 locals {
-  hub_resolver_zones = {
-    for k, v in local.private_zones : k => {
-      domain_name = v.domain_name
-    } if var.is_hub == true
-  }
-  shared_resolver_zones = {
-    for k, v in local.private_zones : k => {
-      domain_name = v.domain_name
-    } if var.is_hub != true
-  }
+  hub_resolver_zones = toset([
+    for k, v in local.private_zones :
+    v.domain_name
+    if var.is_hub == true
+  ])
+  shared_resolver_zones = toset([
+    for k, v in local.private_zones :
+    v.domain_name
+    if var.is_hub == true
+  ])
 }
 
 # Resolve the inbound domain with inbound resolver through te outbound resolver
 resource "aws_route53_resolver_rule" "inbound_rules" {
-  depends_on = [module.resolver_endpoint_out]
-  for_each = { for k, v in local.hub_resolver_zones : k => v
-  if var.is_hub == true }
+  depends_on           = [module.resolver_endpoint_out]
+  for_each             = local.hub_resolver_zones
   provider             = aws.default
   name                 = "rslvr-rr-in-${replace(each.key, ".", "-")}-${local.system_name}"
-  domain_name          = each.value.domain_name
+  domain_name          = each.value
   rule_type            = "FORWARD"
   resolver_endpoint_id = module.resolver_endpoint_out[0].route53_resolver_endpoint_id
   dynamic "target_ip" {
