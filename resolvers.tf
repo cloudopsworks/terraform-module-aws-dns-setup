@@ -10,13 +10,13 @@ locals {
   }
 }
 resource "aws_route53_resolver_rule" "outbound_rules" {
-  depends_on           = [module.resolver_endpoints]
+  depends_on           = [module.resolver_endpoint_out]
   for_each             = local.resolver_zones
   provider             = aws.default
   name                 = "rslvr-out-${replace(each.key, ".", "-")}-${local.system_name}"
   domain_name          = each.value.domain_name
   rule_type            = "FORWARD"
-  resolver_endpoint_id = module.resolver_endpoints[0].route53_resolver_endpoint_id
+  resolver_endpoint_id = module.resolver_endpoint_out[0].route53_resolver_endpoint_id
   tags                 = local.all_tags
 }
 
