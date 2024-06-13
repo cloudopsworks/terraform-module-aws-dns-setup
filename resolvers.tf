@@ -12,7 +12,7 @@ locals {
   shared_resolver_zones = toset([
     for k, v in local.private_zones :
     v.domain_name
-    if var.is_hub == true
+    if var.is_hub != true
   ])
 }
 
