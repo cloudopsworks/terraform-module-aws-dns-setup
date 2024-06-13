@@ -37,3 +37,9 @@ resource "aws_ram_principal_association" "outbound_rules" {
   principal          = each.value.principal
   resource_share_arn = aws_ram_resource_share.outbound_rules[each.value.zone_key].arn
 }
+
+
+resource "aws_ram_resource_share_accepter" "outbound_rules" {
+  for_each  = var.ram.share_ids
+  share_arn = each.value
+}

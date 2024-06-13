@@ -54,11 +54,13 @@ variable "ram" {
     enabled                   = optional(bool, true)
     allow_external_principals = optional(bool, false)
     principals                = optional(list(string), [])
+    share_ids                 = optional(list(string), [])
   })
   default = {
     enabled                   = false
     allow_external_principals = false
     principals                = []
+    share_ids                 = []
   }
 }
 
