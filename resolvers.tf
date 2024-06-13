@@ -13,7 +13,7 @@ resource "aws_route53_resolver_rule" "outbound_rules" {
   depends_on           = [module.resolver_endpoints]
   for_each             = local.resolver_zones
   provider             = aws.default
-  name                 = "rslvr-out-${replace(each.key,".","-")}-${local.system_name}"
+  name                 = "rslvr-out-${replace(each.key, ".", "-")}-${local.system_name}"
   domain_name          = each.value.domain_name
   rule_type            = "FORWARD"
   resolver_endpoint_id = module.resolver_endpoints[0].route53_resolver_endpoint_id
@@ -31,10 +31,14 @@ module "resolver_endpoints" {
 
   create              = true
   name                = "rslvr-ep-${local.system_name}"
-  security_group_name = "rslvr-ep-sg-${local.system_name}"
-  direction           = "OUTBOUND"
+  direction           = "INBOUND"
   subnet_ids          = var.subnet_ids
   vpc_id              = var.vpc_id
   protocols           = ["DoH", "Do53"]
   tags                = local.all_tags
+  security_group_name = "rslvr-ep-sg-${local.system_name}"
+  security_group_ingress_cidr_blocks = [
+    var.vpc_cidr_block
+  ]
+  security_group_tags = local.all_tags
 }

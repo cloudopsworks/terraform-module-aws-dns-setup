@@ -39,6 +39,11 @@ variable "vpc_id" {
   default = ""
 }
 
+variable "vpc_cidr_block" {
+  type    = string
+  default = ""
+}
+
 variable "subnet_ids" {
   type    = list(string)
   default = []
