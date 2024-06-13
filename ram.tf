@@ -21,7 +21,7 @@ resource "aws_ram_resource_association" "inbound_rules" {
   for_each           = local.hub_resolver_zones
   provider           = aws.default
   resource_arn       = aws_route53_resolver_rule.inbound_rules[each.key].arn
-  resource_share_arn = aws_ram_resource_share.outbound_rules[each.key].arn
+  resource_share_arn = aws_ram_resource_share.inbound_rules[each.key].arn
 }
 
 resource "aws_ram_principal_association" "inbound_rules" {

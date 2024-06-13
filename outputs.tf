@@ -72,7 +72,7 @@ output "resolver_endpoints" {
 output "ram" {
   value = {
     resource_shares = {
-      for rs in aws_ram_resource_share.outbound_rules :
+      for rs in aws_ram_resource_share.inbound_rules :
       rs.name => {
         id                        = rs.id
         arn                       = rs.arn
@@ -80,14 +80,14 @@ output "ram" {
       }
     }
     resource_associations = {
-      for ra in aws_ram_resource_association.outbound_rules :
+      for ra in aws_ram_resource_association.inbound_rules :
       ra.id => {
         resource_arn       = ra.resource_arn
         resource_share_arn = ra.resource_share_arn
       }
     }
     principal_associations = {
-      for pa in aws_ram_principal_association.outbound_rules :
+      for pa in aws_ram_principal_association.inbound_rules :
       pa.id => {
         principal          = pa.principal
         resource_share_arn = pa.resource_share_arn
