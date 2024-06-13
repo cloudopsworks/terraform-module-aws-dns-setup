@@ -7,7 +7,7 @@
 locals {
   private_zones = {
     for k, v in var.zones : k => {
-      domain_name = k
+      domain_name = v.domain_name
       comment     = v.comment
       tags        = v.tags
       vpc = {
@@ -17,7 +17,7 @@ locals {
   }
   public_zones = {
     for k, v in var.zones : k => {
-      domain_name = k
+      domain_name = v.domain_name
       comment     = v.comment
       tags        = v.tags
     } if try(v.private, false) != true
