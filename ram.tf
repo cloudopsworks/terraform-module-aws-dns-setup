@@ -4,6 +4,6 @@
 #            Distributed Under Apache v2.0 License
 #
 
-resource "aws_ram_resource_share" "share_resolver" {
-  name = ""
-}
+# resource "aws_ram_resource_share" "share_resolver" {
+#   name = ""
+# }
