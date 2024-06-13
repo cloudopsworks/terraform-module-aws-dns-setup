@@ -11,8 +11,7 @@ locals {
   }
   shared_resolver_zones = {
     for k, v in local.private_zones : k => {
-      domain_name             = v.domain_name
-      shared_resolver_rule_id = v.shared_resolver_rule_id
+      domain_name = v.domain_name
     } if var.is_hub != true
   }
 }

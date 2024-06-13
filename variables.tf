@@ -54,17 +54,26 @@ variable "ram" {
     enabled                   = optional(bool, true)
     allow_external_principals = optional(bool, false)
     principals                = optional(list(string), [])
-    share_ids                 = optional(set(string), [])
   })
   default = {
     enabled                   = false
     allow_external_principals = false
     principals                = []
-    share_ids                 = []
   }
 }
 
 variable "enable_auto_accept" {
   type    = bool
   default = true
+}
+
+variable "shared" {
+  type = object({
+    ram_shares     = any
+    resolver_rules = any
+  })
+  default = {
+    ram_shares     = {}
+    resolver_rules = {}
+  }
 }
