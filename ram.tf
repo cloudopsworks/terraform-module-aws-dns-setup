@@ -31,7 +31,7 @@ resource "aws_ram_principal_association" "outbound_rules" {
       principal   = p
       }
     }
-  ])
+  ]...)
   provider           = aws.default
   principal          = each.value.principal
   resource_share_arn = aws_ram_resource_share.outbound_rules[each.key].arn
