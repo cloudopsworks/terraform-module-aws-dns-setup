@@ -17,7 +17,13 @@ resource "aws_route53_resolver_rule" "outbound_rules" {
   domain_name          = each.value.domain_name
   rule_type            = "FORWARD"
   resolver_endpoint_id = module.resolver_endpoint_out[0].route53_resolver_endpoint_id
-  tags                 = local.all_tags
+  dynamic "target_ip" {
+    for_each = module.resolver_endpoint_in[0].route53_resolver_endpoint_ip_addresses
+    content {
+      ip = target_ip.value.ip
+    }
+  }
+  tags = local.all_tags
 }
 
 module "resolver_endpoint_in" {
