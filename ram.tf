@@ -4,8 +4,8 @@
 #            Distributed Under Apache v2.0 License
 #
 
-resource "aws_ram_resource_share" "outbound_rules" {
-  for_each                  = local.resolver_zones
+resource "aws_ram_resource_share" "inbound_rules" {
+  for_each                  = local.hub_resolver_zones
   provider                  = aws.default
   name                      = aws_route53_resolver_rule.inbound_rules[each.key].name
   allow_external_principals = var.ram.allow_external_principals
@@ -17,16 +17,16 @@ resource "aws_ram_resource_share" "outbound_rules" {
   )
 }
 
-resource "aws_ram_resource_association" "outbound_rules" {
-  for_each           = local.resolver_zones
+resource "aws_ram_resource_association" "inbound_rules" {
+  for_each           = local.hub_resolver_zones
   provider           = aws.default
   resource_arn       = aws_route53_resolver_rule.inbound_rules[each.key].arn
   resource_share_arn = aws_ram_resource_share.outbound_rules[each.key].arn
 }
 
-resource "aws_ram_principal_association" "outbound_rules" {
+resource "aws_ram_principal_association" "inbound_rules" {
   for_each = merge([for p in var.ram.principals :
-    { for k, v in local.resolver_zones : "${k}-${p}" => {
+    { for k, v in local.hub_resolver_zones : "${k}-${p}" => {
       domain_name = v.domain_name
       zone_key    = k
       principal   = p
@@ -35,11 +35,11 @@ resource "aws_ram_principal_association" "outbound_rules" {
   ]...)
   provider           = aws.default
   principal          = each.value.principal
-  resource_share_arn = aws_ram_resource_share.outbound_rules[each.value.zone_key].arn
+  resource_share_arn = aws_ram_resource_share.inbound_rules[each.value.zone_key].arn
 }
 
 
-resource "aws_ram_resource_share_accepter" "outbound_rules" {
+resource "aws_ram_resource_share_accepter" "inbound_rules" {
   for_each  = var.ram.share_ids
   share_arn = each.value
 }

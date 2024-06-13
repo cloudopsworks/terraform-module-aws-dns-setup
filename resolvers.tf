@@ -15,12 +15,11 @@ locals {
       shared_resolver_rule_id = v.shared_resolver_rule_id
     } if var.is_hub != true
   }
-  resolver_zones = merge(local.hub_resolver_zones, local.shared_resolver_zones)
 }
 
 resource "aws_route53_resolver_rule" "inbound_rules" {
   depends_on = [module.resolver_endpoint_out]
-  for_each = { for k, v in local.resolver_zones : k => v
+  for_each = { for k, v in local.hub_resolver_zones : k => v
   if var.is_hub == true }
   provider             = aws.default
   name                 = "rslvr-rr-in-${replace(each.key, ".", "-")}-${local.system_name}"
@@ -36,13 +35,13 @@ resource "aws_route53_resolver_rule" "inbound_rules" {
   tags = local.all_tags
 }
 
-# resource "aws_route53_resolver_rule_association" "inbound_rules" {
-#   for_each         = local.resolver_zones
-#   provider         = aws.default
-#   name             = "rra-${replace(each.value.domain_name, ".", "-")}-${var.vpc_id}-${local.system_name}"
-#   resolver_rule_id = var.is_hub ? try(aws_route53_resolver_rule.inbound_rules[each.key].id, null) : each.value.shared_resolver_rule_id
-#   vpc_id           = var.vpc_id
-# }
+resource "aws_route53_resolver_rule_association" "inbound_rules" {
+  for_each         = local.shared_resolver_zones
+  provider         = aws.default
+  name             = "rra-${replace(each.value.domain_name, ".", "-")}-${var.vpc_id}-${local.system_name}"
+  resolver_rule_id = var.is_hub ? try(aws_route53_resolver_rule.inbound_rules[each.key].id, null) : each.value.shared_resolver_rule_id
+  vpc_id           = var.vpc_id
+}
 
 module "resolver_endpoint_in" {
   count      = var.is_hub ? 1 : 0
