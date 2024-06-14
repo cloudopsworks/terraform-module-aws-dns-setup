@@ -100,5 +100,6 @@ output "dns_vpc" {
     vpc_id         = var.vpc_id
     vpc_region     = data.aws_region.current.id
     vpc_cidr_block = var.vpc_cidr_block
+    subnet_ids     = var.subnet_ids
   }
 }
