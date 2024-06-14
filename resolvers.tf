@@ -40,7 +40,7 @@ resource "aws_route53_resolver_rule_association" "inbound_rules" {
 
 module "resolver_endpoint_in" {
   count      = var.is_hub ? 1 : 0
-  depends_on = [module.dns]
+  depends_on = [aws_route53_zone.this]
   providers = {
     aws = aws.default
   }
@@ -63,7 +63,7 @@ module "resolver_endpoint_in" {
 
 module "resolver_endpoint_out" {
   count      = var.is_hub ? 1 : 0
-  depends_on = [module.dns]
+  depends_on = [aws_route53_zone.this]
   providers = {
     aws = aws.default
   }

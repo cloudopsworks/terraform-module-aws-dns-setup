@@ -6,12 +6,12 @@
 
 output "zones" {
   value = {
-    for k, v in module.dns.route53_static_zone_name :
-    k => {
-      id           = module.dns.route53_zone_zone_id[k]
-      arn          = module.dns.route53_zone_zone_arn[k]
-      name         = module.dns.route53_zone_name[k]
-      name_servers = module.dns.route53_zone_name_servers[k]
+    for v in aws_route53_zone.this :
+    v.name => {
+      id           = v.zone_id
+      arn          = v.arn
+      name         = v.name
+      name_servers = v.name_servers
     }
   }
 }
