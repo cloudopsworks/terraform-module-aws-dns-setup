@@ -103,3 +103,11 @@ output "dns_vpc" {
     subnet_ids     = var.subnet_ids
   }
 }
+
+output "vpc_association_auth" {
+  value = {
+    for k, v in local.private_zones :
+    k => aws_route53_vpc_association_authorization.vpc_association[k].id
+    if var.dns_vpc.vpc_id != ""
+  }
+}

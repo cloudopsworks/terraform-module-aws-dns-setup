@@ -48,12 +48,3 @@ resource "aws_route53_vpc_association_authorization" "vpc_association" {
   vpc_region = var.dns_vpc.vpc_region
   zone_id    = module.dns.route53_zone_zone_id[each.key]
 }
-# module "dns_resolve_rules" {
-#   depends_on = [module.dns]
-#     providers = {
-#         aws = aws.default
-#     }
-#   source  = "terraform-aws-modules/route53/aws//modules/resolve-rules"
-#   version = "~> 3.0"
-#
-# }
