@@ -21,9 +21,6 @@ locals {
   }
 
   all_zones = merge(local.private_zones, local.public_zones)
-
-  association_zones = setunion(var.association_zone_ids,
-  [for zone in aws_route53_zone.this : zone.zone_id])
 }
 
 resource "aws_route53_zone" "this" {
@@ -63,7 +60,14 @@ resource "aws_route53_vpc_association_authorization" "vpc_association" {
 
 resource "aws_route53_zone_association" "vpc_association" {
   provider = aws.default
-  for_each = local.association_zones
+  for_each = var.association_zone_ids
   vpc_id   = var.vpc_id
   zone_id  = each.value
+}
+
+resource "aws_route53_zone_association" "vpc_association_default" {
+  provider = aws.default
+  for_each = aws_route53_zone.this
+  vpc_id   = var.vpc_id
+  zone_id  = each.value.zone_id
 }
