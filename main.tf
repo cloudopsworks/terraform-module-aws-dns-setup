@@ -10,6 +10,10 @@ locals {
       domain_name = v.domain_name
       comment     = v.comment
       tags        = v.tags
+      vpc = {
+        vpc_id= var.vpc_id
+        vpc_region= data.aws_region.current.name
+      }
     } if try(v.private, false) == true
   }
   public_zones = {
@@ -31,19 +35,24 @@ resource "aws_route53_zone" "this" {
   force_destroy     = lookup(each.value, "force_destroy", false)
   delegation_set_id = lookup(each.value, "delegation_set_id", null)
 
-  #   dynamic "vpc" {
-  #     for_each = try(tolist(lookup(each.value, "vpc", [])), [lookup(each.value, "vpc", {})])
-  #
-  #     content {
-  #       vpc_id     = vpc.value.vpc_id
-  #       vpc_region = lookup(vpc.value, "vpc_region", null)
-  #     }
-  #   }
+    dynamic "vpc" {
+      for_each = try(tolist(lookup(each.value, "vpc", [])), [lookup(each.value, "vpc", {})])
+
+      content {
+        vpc_id     = vpc.value.vpc_id
+        vpc_region = lookup(vpc.value, "vpc_region", null)
+      }
+    }
 
   tags = merge(
     lookup(each.value, "tags", {}),
     local.all_tags
   )
+  lifecycle {
+    ignore_changes = [
+      vpc,
+    ]
+  }
 }
 
 resource "aws_route53_vpc_association_authorization" "vpc_association" {
@@ -63,11 +72,4 @@ resource "aws_route53_zone_association" "vpc_association" {
   for_each = var.association_zone_ids
   vpc_id   = var.vpc_id
   zone_id  = each.value
-}
-
-resource "aws_route53_zone_association" "vpc_association_default" {
-  provider = aws.default
-  for_each = aws_route53_zone.this
-  vpc_id   = var.vpc_id
-  zone_id  = each.value.zone_id
 }
