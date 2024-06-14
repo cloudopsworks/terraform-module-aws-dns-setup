@@ -107,7 +107,12 @@ output "dns_vpc" {
 output "vpc_association_auth" {
   value = {
     for k, v in local.private_zones :
-    k => aws_route53_vpc_association_authorization.vpc_association[k].id
+    k => {
+      id         = aws_route53_vpc_association_authorization.vpc_association[k].id
+      zone_id    = aws_route53_vpc_association_authorization.vpc_association[k].zone_id
+      vpc_id     = aws_route53_vpc_association_authorization.vpc_association[k].vpc_id
+      vpc_region = aws_route53_vpc_association_authorization.vpc_association[k].vpc_region
+    }
     if var.dns_vpc.vpc_id != ""
   }
 }
