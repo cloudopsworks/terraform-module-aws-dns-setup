@@ -87,3 +87,8 @@ variable "shared" {
     resolver_rules = {}
   }
 }
+
+variable "association_zone_ids" {
+  type    = set(string)
+  default = []
+}

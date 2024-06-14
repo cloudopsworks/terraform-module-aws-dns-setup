@@ -48,3 +48,10 @@ resource "aws_route53_vpc_association_authorization" "vpc_association" {
   vpc_region = var.dns_vpc.vpc_region
   zone_id    = module.dns.route53_zone_zone_id[each.key]
 }
+
+resource "aws_route53_zone_association" "vpc_association" {
+  provider = aws.default
+  for_each = var.association_zone_ids
+  vpc_id   = var.vpc_id
+  zone_id  = each.value
+}
