@@ -94,3 +94,11 @@ output "ram" {
     }
   }
 }
+
+output "dns_vpc" {
+  value = {
+    vpc_id         = var.vpc_id
+    vpc_region     = data.aws_region.current.id
+    vpc_cidr_block = var.vpc_cidr_block
+  }
+}
