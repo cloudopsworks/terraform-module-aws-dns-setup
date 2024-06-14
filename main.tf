@@ -10,9 +10,6 @@ locals {
       domain_name = v.domain_name
       comment     = v.comment
       tags        = v.tags
-      vpc = {
-        vpc_id = var.vpc_id
-      }
     } if try(v.private, false) == true
   }
   public_zones = {
@@ -24,6 +21,9 @@ locals {
   }
 
   all_zones = merge(local.private_zones, local.public_zones)
+
+  association_zones = toset(concat(var.association_zone_ids,
+  [for zone in aws_route53_zone.this : zone.zone_id]))
 }
 
 resource "aws_route53_zone" "this" {
@@ -49,7 +49,6 @@ resource "aws_route53_zone" "this" {
   )
 }
 
-
 resource "aws_route53_vpc_association_authorization" "vpc_association" {
   provider = aws.default
   for_each = {
@@ -64,7 +63,7 @@ resource "aws_route53_vpc_association_authorization" "vpc_association" {
 
 resource "aws_route53_zone_association" "vpc_association" {
   provider = aws.default
-  for_each = var.association_zone_ids
+  for_each = local.association_zones
   vpc_id   = var.vpc_id
   zone_id  = each.value
 }
