@@ -37,6 +37,13 @@ module "dns" {
   tags    = local.all_tags
 }
 
+resource "aws_route53_vpc_association_authorization" "vpc_association" {
+  provider   = aws.default
+  for_each   = local.private_zones
+  vpc_id     = var.vpc_id
+  vpc_region = var.vpc_region
+  zone_id    = module.dns.route53_zone_zone_id[each.key]
+}
 # module "dns_resolve_rules" {
 #   depends_on = [module.dns]
 #     providers = {
