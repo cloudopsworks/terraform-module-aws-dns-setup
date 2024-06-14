@@ -22,8 +22,8 @@ locals {
 
   all_zones = merge(local.private_zones, local.public_zones)
 
-  association_zones = toset(concat(var.association_zone_ids,
-  [for zone in aws_route53_zone.this : zone.zone_id]))
+  association_zones = setunion(var.association_zone_ids,
+  [for zone in aws_route53_zone.this : zone.zone_id])
 }
 
 resource "aws_route53_zone" "this" {
