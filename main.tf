@@ -38,10 +38,14 @@ module "dns" {
 }
 
 resource "aws_route53_vpc_association_authorization" "vpc_association" {
-  provider   = aws.default
-  for_each   = local.private_zones
-  vpc_id     = var.vpc_id
-  vpc_region = var.vpc_region
+  provider = aws.default
+  for_each = {
+    for k, v in local.private_zones :
+    k => v
+    if var.dns_vpc.vpc_id != ""
+  }
+  vpc_id     = var.dns_vpc.vpc_id
+  vpc_region = var.dns_vpc.vpc_region
   zone_id    = module.dns.route53_zone_zone_id[each.key]
 }
 # module "dns_resolve_rules" {

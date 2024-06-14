@@ -44,9 +44,15 @@ variable "vpc_cidr_block" {
   default = ""
 }
 
-variable "vpc_region" {
-  type    = string
-  default = "us-east-1"
+variable "dns_vpc" {
+  type = object({
+    vpc_id     = string
+    vpc_region = optional(string, "us-east-1")
+  })
+  default = {
+    vpc_id     = ""
+    vpc_region = ""
+  }
 }
 variable "subnet_ids" {
   type    = list(string)
