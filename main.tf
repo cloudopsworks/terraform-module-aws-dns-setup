@@ -29,7 +29,7 @@ locals {
 
 resource "aws_route53_zone" "this" {
   provider          = aws.default
-  for_each          = { for k, v in var.zones : k => v }
+  for_each          = { for k, v in local.all_zones : k => v }
   name              = lookup(each.value, "domain_name", each.key)
   comment           = lookup(each.value, "comment", null)
   force_destroy     = lookup(each.value, "force_destroy", false)
@@ -48,11 +48,11 @@ resource "aws_route53_zone" "this" {
     lookup(each.value, "tags", {}),
     local.all_tags
   )
-#   lifecycle {
-#     ignore_changes = [
-#       vpc,
-#     ]
-#   }
+  lifecycle {
+    ignore_changes = [
+      vpc,
+    ]
+  }
 }
 
 resource "aws_route53_vpc_association_authorization" "vpc_association" {
