@@ -11,8 +11,8 @@ locals {
       comment     = v.comment
       tags        = v.tags
       vpc = {
-        vpc_id= var.vpc_id
-        vpc_region= data.aws_region.current.name
+        vpc_id     = var.vpc_id
+        vpc_region = data.aws_region.current.name
       }
     } if try(v.private, false) == true
   }
@@ -35,14 +35,14 @@ resource "aws_route53_zone" "this" {
   force_destroy     = lookup(each.value, "force_destroy", false)
   delegation_set_id = lookup(each.value, "delegation_set_id", null)
 
-    dynamic "vpc" {
-      for_each = try(tolist(lookup(each.value, "vpc", [])), [lookup(each.value, "vpc", {})])
+  dynamic "vpc" {
+    for_each = try(tolist(lookup(each.value, "vpc", [])), [lookup(each.value, "vpc", {})])
 
-      content {
-        vpc_id     = vpc.value.vpc_id
-        vpc_region = lookup(vpc.value, "vpc_region", null)
-      }
+    content {
+      vpc_id     = vpc.value.vpc_id
+      vpc_region = lookup(vpc.value, "vpc_region", null)
     }
+  }
 
   tags = merge(
     lookup(each.value, "tags", {}),
