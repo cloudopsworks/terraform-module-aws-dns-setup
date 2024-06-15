@@ -48,11 +48,11 @@ resource "aws_route53_zone" "this" {
     lookup(each.value, "tags", {}),
     local.all_tags
   )
-  lifecycle {
-    ignore_changes = [
-      vpc,
-    ]
-  }
+#   lifecycle {
+#     ignore_changes = [
+#       vpc,
+#     ]
+#   }
 }
 
 resource "aws_route53_vpc_association_authorization" "vpc_association" {
