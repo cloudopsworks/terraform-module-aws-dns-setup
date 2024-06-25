@@ -28,7 +28,6 @@ locals {
 }
 
 resource "aws_route53_zone" "this" {
-  provider          = aws.default
   for_each          = { for k, v in local.all_zones : k => v }
   name              = lookup(each.value, "domain_name", each.key)
   comment           = lookup(each.value, "comment", null)
@@ -56,7 +55,6 @@ resource "aws_route53_zone" "this" {
 }
 
 resource "aws_route53_vpc_association_authorization" "vpc_association" {
-  provider = aws.default
   for_each = {
     for k, v in local.private_zones :
     k => v
@@ -68,7 +66,6 @@ resource "aws_route53_vpc_association_authorization" "vpc_association" {
 }
 
 resource "aws_route53_zone_association" "vpc_association" {
-  provider = aws.default
   for_each = var.association_zone_ids
   vpc_id   = var.vpc_id
   zone_id  = each.value

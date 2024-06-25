@@ -15,7 +15,6 @@ locals {
 resource "aws_route53_resolver_rule" "inbound_rules" {
   depends_on           = [module.resolver_endpoint_out]
   for_each             = local.hub_resolver_zones
-  provider             = aws.default
   name                 = "rslvr-rr-in-${replace(each.key, ".", "-")}-${local.system_name}"
   domain_name          = each.value
   rule_type            = "FORWARD"
@@ -32,7 +31,6 @@ resource "aws_route53_resolver_rule" "inbound_rules" {
 resource "aws_route53_resolver_rule_association" "inbound_rules" {
   depends_on       = [aws_ram_resource_association.inbound_rules]
   for_each         = var.shared.resolver_rules
-  provider         = aws.default
   name             = "rra-${replace(each.value.domain_name, ".", "-")}-${var.vpc_id}-${local.system_name}"
   resolver_rule_id = each.value.id
   vpc_id           = var.vpc_id
@@ -41,11 +39,8 @@ resource "aws_route53_resolver_rule_association" "inbound_rules" {
 module "resolver_endpoint_in" {
   count      = var.is_hub ? 1 : 0
   depends_on = [aws_route53_zone.this]
-  providers = {
-    aws = aws.default
-  }
-  source  = "terraform-aws-modules/route53/aws//modules/resolver-endpoints"
-  version = "~> 3.0"
+  source     = "terraform-aws-modules/route53/aws//modules/resolver-endpoints"
+  version    = "~> 3.0"
 
   create              = true
   name                = "rslvr-in-${local.system_name}"
@@ -64,11 +59,8 @@ module "resolver_endpoint_in" {
 module "resolver_endpoint_out" {
   count      = var.is_hub ? 1 : 0
   depends_on = [aws_route53_zone.this]
-  providers = {
-    aws = aws.default
-  }
-  source  = "terraform-aws-modules/route53/aws//modules/resolver-endpoints"
-  version = "~> 3.0"
+  source     = "terraform-aws-modules/route53/aws//modules/resolver-endpoints"
+  version    = "~> 3.0"
 
   create              = true
   name                = "rslvr-out-${local.system_name}"
