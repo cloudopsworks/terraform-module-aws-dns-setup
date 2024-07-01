@@ -31,7 +31,7 @@ resource "aws_route53_resolver_rule" "inbound_rules" {
 resource "aws_route53_resolver_rule_association" "inbound_rules" {
   depends_on       = [aws_ram_resource_association.inbound_rules, aws_ram_resource_share_accepter.inbound_rules]
   for_each         = var.shared.resolver_rules
-  name             = "rra-${replace(each.value.domain_name, ".", "-")}-${var.vpc_id}-${local.system_name}"
+  name             = "rra-${replace(each.value.domain_name, ".", "-")}-${var.vpc_id}-${local.system_name_short}"
   resolver_rule_id = each.value.id
   vpc_id           = var.vpc_id
 }
