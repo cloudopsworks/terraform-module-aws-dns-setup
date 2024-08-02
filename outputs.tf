@@ -86,6 +86,14 @@ output "resolver_endpoints" {
 
 output "ram" {
   value = {
+    custom_rules_resource_shares = {
+      for rs in aws_ram_resource_share.custom_inbound_rules :
+      rs.name => {
+        id                        = rs.id
+        arn                       = rs.arn
+        allow_external_principals = rs.allow_external_principals
+      }
+    }
     resource_shares = {
       for rs in aws_ram_resource_share.inbound_rules :
       rs.name => {

@@ -4,6 +4,7 @@
 #            Distributed Under Apache v2.0 License
 #
 
+# Inbound rules sharing
 resource "aws_ram_resource_share" "inbound_rules" {
   for_each                  = local.hub_resolver_zones
   name                      = aws_route53_resolver_rule.inbound_rules[each.key].name
@@ -20,6 +21,24 @@ resource "aws_ram_resource_association" "inbound_rules" {
   for_each           = local.hub_resolver_zones
   resource_arn       = aws_route53_resolver_rule.inbound_rules[each.key].arn
   resource_share_arn = aws_ram_resource_share.inbound_rules[each.key].arn
+}
+
+# Custom inbound rules sharing
+resource "aws_ram_resource_share" "custom_inbound_rules" {
+  for_each                  = local.custom_resolver_rules
+  name                      = aws_route53_resolver_rule.custom_inbound_rules[each.key].name
+  allow_external_principals = var.ram.allow_external_principals
+  tags = merge(
+    {
+      Name = "rslvr-${replace(each.key, ".", "-")}-${local.system_name}"
+    },
+    local.all_tags
+  )
+}
+resource "aws_ram_resource_association" "custom_inbound_rules" {
+  for_each           = local.custom_resolver_rules
+  resource_arn       = aws_route53_resolver_rule.custom_inbound_rules[each.key].arn
+  resource_share_arn = aws_ram_resource_share.custom_inbound_rules[each.key].arn
 }
 
 resource "aws_ram_principal_association" "inbound_rules" {
