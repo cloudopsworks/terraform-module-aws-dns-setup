@@ -32,6 +32,22 @@ output "resolver_rules" {
   }
 }
 
+output "custom_resolver_rules" {
+  value = {
+    inbound = {
+      for rr in aws_route53_resolver_rule.custom_inbound_rules :
+      rr.name => {
+        id                   = rr.id
+        arn                  = rr.arn
+        domain_name          = rr.domain_name
+        rule_type            = rr.rule_type
+        resolver_endpoint_id = rr.resolver_endpoint_id
+        target_ip            = rr.target_ip
+      }
+    }
+  }
+}
+
 output "resolver_rules_associations" {
   value = {
     for rra in aws_route53_resolver_rule_association.inbound_rules :
