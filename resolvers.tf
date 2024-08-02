@@ -4,6 +4,11 @@
 #            Distributed Under Apache v2.0 License
 #
 locals {
+  custom_resolver_rules = {
+    for k, v in var.custom_resolver_rules :
+    k => v
+    if var.is_hub == true
+  }
   hub_resolver_zones = toset([
     for k, v in local.private_zones :
     v.domain_name
@@ -28,10 +33,28 @@ resource "aws_route53_resolver_rule" "inbound_rules" {
   tags = local.all_tags
 }
 
+# Resolve custom rules into inbound resolver
+resource "aws_route53_resolver_rule" "custom_inbound_rules" {
+  depends_on           = [module.resolver_endpoint_out]
+  for_each             = local.custom_resolver_rules
+  name                 = "rslvr-rr-in-${replace(each.key, ".", "-")}-${local.system_name}"
+  domain_name          = each.value.domain_name
+  rule_type            = "FORWARD"
+  resolver_endpoint_id = module.resolver_endpoint_out[0].route53_resolver_endpoint_id
+  dynamic "target_ip" {
+    for_each = module.resolver_endpoint_in[0].route53_resolver_endpoint_ip_addresses
+    content {
+      ip = target_ip.value.ip
+    }
+  }
+  tags = local.all_tags
+}
+
+
 resource "aws_route53_resolver_rule_association" "inbound_rules" {
   depends_on       = [aws_ram_resource_association.inbound_rules, aws_ram_resource_share_accepter.inbound_rules]
   for_each         = var.shared.resolver_rules
-  name             = "rra-${replace(each.value.domain_name, ".", "-")}-${var.vpc_id}-${local.system_name_short}"
+  name             = "rra-${replace(try(each.value.domain_name, each.value.rule_name), ".", "-")}-${var.vpc_id}-${local.system_name_short}"
   resolver_rule_id = each.value.id
   vpc_id           = var.vpc_id
 }

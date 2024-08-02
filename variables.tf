@@ -92,3 +92,9 @@ variable "association_zone_ids" {
   type    = set(string)
   default = []
 }
+
+variable "custom_resolver_rules" {
+  description = "Custom resolver rules to create"
+  type        = any
+  default     = {}
+}
