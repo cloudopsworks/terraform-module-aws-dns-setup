@@ -23,6 +23,18 @@ resource "aws_ram_resource_association" "inbound_rules" {
   resource_share_arn = aws_ram_resource_share.inbound_rules[each.key].arn
 }
 
+resource "aws_ram_principal_association" "inbound_rules" {
+  for_each = merge([for p in var.ram.principals :
+    { for d in local.hub_resolver_zones : "${d}-${p}" => {
+      domain_name = d
+      principal   = p
+      }
+    }
+  ]...)
+  principal          = each.value.principal
+  resource_share_arn = aws_ram_resource_share.inbound_rules[each.value.domain_name].arn
+}
+
 # Custom inbound rules sharing
 resource "aws_ram_resource_share" "custom_inbound_rules" {
   for_each                  = local.custom_resolver_rules
@@ -35,22 +47,23 @@ resource "aws_ram_resource_share" "custom_inbound_rules" {
     local.all_tags
   )
 }
+
 resource "aws_ram_resource_association" "custom_inbound_rules" {
   for_each           = local.custom_resolver_rules
   resource_arn       = aws_route53_resolver_rule.custom_inbound_rules[each.key].arn
   resource_share_arn = aws_ram_resource_share.custom_inbound_rules[each.key].arn
 }
 
-resource "aws_ram_principal_association" "inbound_rules" {
+resource "aws_ram_principal_association" "custom_inbound_rules" {
   for_each = merge([for p in var.ram.principals :
-    { for d in local.hub_resolver_zones : "${d}-${p}" => {
-      domain_name = d
-      principal   = p
+    { for k, v in local.custom_resolver_rules : "${k}-${p}" => {
+      resource_name = k
+      principal     = p
       }
     }
   ]...)
   principal          = each.value.principal
-  resource_share_arn = aws_ram_resource_share.inbound_rules[each.value.domain_name].arn
+  resource_share_arn = aws_ram_resource_share.custom_inbound_rules[each.value.resource_name].arn
 }
 
 

@@ -94,6 +94,13 @@ output "ram" {
         allow_external_principals = rs.allow_external_principals
       }
     }
+    custom_rules_principal_associations = {
+      for pa in aws_ram_principal_association.custom_inbound_rules :
+      pa.id => {
+        principal          = pa.principal
+        resource_share_arn = pa.resource_share_arn
+      }
+    }
     resource_shares = {
       for rs in aws_ram_resource_share.inbound_rules :
       rs.name => {
