@@ -57,13 +57,13 @@ resource "aws_ram_resource_association" "custom_inbound_rules" {
 resource "aws_ram_principal_association" "custom_inbound_rules" {
   for_each = merge([for p in var.ram.principals :
     { for k, v in local.custom_resolver_rules : "${k}-${p}" => {
-      resource_name = k
-      principal     = p
+      rule_name = k
+      principal = p
       }
     }
   ]...)
   principal          = each.value.principal
-  resource_share_arn = aws_ram_resource_share.custom_inbound_rules[each.value.resource_name].arn
+  resource_share_arn = aws_ram_resource_share.custom_inbound_rules[each.value.rule_name].arn
 }
 
 

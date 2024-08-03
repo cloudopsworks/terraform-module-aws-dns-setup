@@ -38,7 +38,7 @@ resource "aws_route53_resolver_rule" "custom_inbound_rules" {
   depends_on           = [module.resolver_endpoint_out]
   for_each             = local.custom_resolver_rules
   name                 = "rslvr-rr-in-${replace(each.key, ".", "-")}-${local.system_name}"
-  domain_name          = each.value.domain_name
+  domain_name          = lower(each.value.domain_name)
   rule_type            = "FORWARD"
   resolver_endpoint_id = module.resolver_endpoint_out[0].route53_resolver_endpoint_id
   dynamic "target_ip" {
@@ -54,7 +54,7 @@ resource "aws_route53_resolver_rule" "custom_inbound_rules" {
 resource "aws_route53_resolver_rule_association" "inbound_rules" {
   depends_on       = [aws_ram_resource_association.inbound_rules, aws_ram_resource_share_accepter.inbound_rules]
   for_each         = var.shared.resolver_rules
-  name             = "rra-${replace(try(each.value.domain_name, each.value.rule_name), ".", "-")}-${var.vpc_id}-${local.system_name_short}"
+  name             = "rra-${replace(lower(try(each.value.domain_name, each.value.rule_name)), ".", "-")}-${var.vpc_id}-${local.system_name_short}"
   resolver_rule_id = each.value.id
   vpc_id           = var.vpc_id
 }
