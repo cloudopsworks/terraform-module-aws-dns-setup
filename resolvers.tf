@@ -20,8 +20,8 @@ locals {
 resource "aws_route53_resolver_rule" "inbound_rules" {
   depends_on           = [module.resolver_endpoint_out]
   for_each             = local.hub_resolver_zones
-  name                 = "rslvr-rr-in-${replace(each.key, ".", "-")}-${local.system_name}"
-  domain_name          = each.value
+  name                 = "rslvr-rr-in-${replace(lower(each.key), ".", "-")}-${local.system_name}"
+  domain_name          = lower(each.value)
   rule_type            = "FORWARD"
   resolver_endpoint_id = module.resolver_endpoint_out[0].route53_resolver_endpoint_id
   dynamic "target_ip" {
