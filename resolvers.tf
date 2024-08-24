@@ -72,7 +72,7 @@ module "resolver_endpoint_in" {
   vpc_id              = var.vpc_id
   protocols           = ["DoH", "Do53"]
   tags                = local.all_tags
-  security_group_name = "rslvr-in-sg-${local.system_name}"
+  security_group_name = "rslvr-in-${local.system_name}-sg"
   security_group_ingress_cidr_blocks = [
     var.vpc_cidr_block
   ]
@@ -92,7 +92,7 @@ module "resolver_endpoint_out" {
   vpc_id              = var.vpc_id
   protocols           = ["DoH", "Do53"]
   tags                = local.all_tags
-  security_group_name = "rslvr-out-sg-${local.system_name}"
+  security_group_name = "rslvr-out-${local.system_name}-sg"
   security_group_ingress_cidr_blocks = [
     var.vpc_cidr_block
   ]
