@@ -46,7 +46,7 @@ variable "vpc_cidr_block" {
 
 variable "dns_vpc" {
   type = object({
-    vpc_id     = string
+    vpc_id     = optional(string, "")
     vpc_region = optional(string, "us-east-1")
   })
   default = {
