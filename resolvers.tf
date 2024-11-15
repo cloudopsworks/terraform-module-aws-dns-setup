@@ -39,10 +39,10 @@ resource "aws_route53_resolver_rule" "custom_inbound_rules" {
   for_each             = local.custom_resolver_rules
   name                 = "rslvr-rr-in-${replace(each.key, ".", "-")}-${local.system_name}"
   domain_name          = lower(each.value.domain_name)
-  rule_type            = "FORWARD"
+  rule_type            = upper(try(each.value.rule_type, "FORWARD"))
   resolver_endpoint_id = module.resolver_endpoint_out[0].route53_resolver_endpoint_id
   dynamic "target_ip" {
-    for_each = module.resolver_endpoint_in[0].route53_resolver_endpoint_ip_addresses
+    for_each = try(each.value.addresses, module.resolver_endpoint_in[0].route53_resolver_endpoint_ip_addresses)
     content {
       ip = target_ip.value.ip
     }
