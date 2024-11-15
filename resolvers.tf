@@ -59,6 +59,14 @@ resource "aws_route53_resolver_rule_association" "inbound_rules" {
   vpc_id           = var.vpc_id
 }
 
+resource "aws_route53_resolver_rule_association" "custom_inbound_rules" {
+  depends_on       = [aws_ram_resource_association.inbound_rules, aws_ram_resource_share_accepter.inbound_rules]
+  for_each         = { for k, v in local.custom_resolver_rules : k => v if try(v.associate_vpc, false) == true }
+  name             = "rra-${replace(lower(each.key), ".", "-")}-${var.vpc_id}-${local.system_name_short}"
+  resolver_rule_id = aws_route53_resolver_rule.custom_inbound_rules[each.key].id
+  vpc_id           = var.vpc_id
+}
+
 module "resolver_endpoint_in" {
   count      = var.is_hub ? 1 : 0
   depends_on = [aws_route53_zone.this]
