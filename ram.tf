@@ -4,9 +4,22 @@
 #            Distributed Under Apache v2.0 License
 #
 
+locals {
+  shared_hub_resolver_zones = toset([
+    for k, v in local.private_zones :
+    v.domain_name
+    if var.is_hub == true && var.ram.enabled == true
+  ])
+  shared_custom_resolver_rules = {
+    for k, v in var.custom_resolver_rules :
+    k => v
+    if var.is_hub == true && var.ram.enabled == true
+  }
+}
+
 # Inbound rules sharing
 resource "aws_ram_resource_share" "inbound_rules" {
-  for_each                  = local.hub_resolver_zones
+  for_each                  = local.shared_hub_resolver_zones
   name                      = aws_route53_resolver_rule.inbound_rules[each.key].name
   allow_external_principals = var.ram.allow_external_principals
   tags = merge(
@@ -18,14 +31,14 @@ resource "aws_ram_resource_share" "inbound_rules" {
 }
 
 resource "aws_ram_resource_association" "inbound_rules" {
-  for_each           = local.hub_resolver_zones
+  for_each           = local.shared_hub_resolver_zones
   resource_arn       = aws_route53_resolver_rule.inbound_rules[each.key].arn
   resource_share_arn = aws_ram_resource_share.inbound_rules[each.key].arn
 }
 
 resource "aws_ram_principal_association" "inbound_rules" {
   for_each = merge([for p in var.ram.principals :
-    { for d in local.hub_resolver_zones : "${d}-${p}" => {
+    { for d in local.shared_hub_resolver_zones : "${d}-${p}" => {
       domain_name = d
       principal   = p
       }
@@ -37,7 +50,7 @@ resource "aws_ram_principal_association" "inbound_rules" {
 
 # Custom inbound rules sharing
 resource "aws_ram_resource_share" "custom_inbound_rules" {
-  for_each                  = local.custom_resolver_rules
+  for_each                  = local.shared_custom_resolver_rules
   name                      = aws_route53_resolver_rule.custom_inbound_rules[each.key].name
   allow_external_principals = var.ram.allow_external_principals
   tags = merge(
@@ -49,14 +62,14 @@ resource "aws_ram_resource_share" "custom_inbound_rules" {
 }
 
 resource "aws_ram_resource_association" "custom_inbound_rules" {
-  for_each           = local.custom_resolver_rules
+  for_each           = local.shared_custom_resolver_rules
   resource_arn       = aws_route53_resolver_rule.custom_inbound_rules[each.key].arn
   resource_share_arn = aws_ram_resource_share.custom_inbound_rules[each.key].arn
 }
 
 resource "aws_ram_principal_association" "custom_inbound_rules" {
   for_each = merge([for p in var.ram.principals :
-    { for k, v in local.custom_resolver_rules : "${k}-${p}" => {
+    { for k, v in local.shared_custom_resolver_rules : "${k}-${p}" => {
       rule_name = k
       principal = p
       }
