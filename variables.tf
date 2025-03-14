@@ -6,16 +6,23 @@
 
 # Establish this is a HUB or spoke configuration
 variable "is_hub" {
-  type    = bool
-  default = false
+  description = "Is this a hub or spoke configuration?"
+  type        = bool
+  default     = false
 }
 
 variable "spoke_def" {
-  type    = string
-  default = "001"
+  description = "Spoke ID Number, must be a 3 digit number"
+  type        = string
+  default     = "001"
+  validation {
+    condition     = (length(var.spoke_def) == 3) && tonumber(var.spoke_def) != null
+    error_message = "The spoke_def must be a 3 digit number as string."
+  }
 }
 
 variable "org" {
+  description = "Organization details"
   type = object({
     organization_name = string
     organization_unit = string
@@ -25,76 +32,7 @@ variable "org" {
 }
 
 variable "extra_tags" {
-  type    = map(string)
-  default = {}
-}
-
-variable "zones" {
-  type    = any
-  default = {}
-}
-
-variable "vpc_id" {
-  type    = string
-  default = ""
-}
-
-variable "vpc_cidr_block" {
-  type    = string
-  default = ""
-}
-
-variable "dns_vpc" {
-  type = object({
-    vpc_id     = optional(string, "")
-    vpc_region = optional(string, "us-east-1")
-  })
-  default = {
-    vpc_id     = ""
-    vpc_region = ""
-  }
-}
-variable "subnet_ids" {
-  type    = list(string)
-  default = []
-}
-
-variable "ram" {
-  type = object({
-    enabled                   = optional(bool, true)
-    allow_external_principals = optional(bool, false)
-    principals                = optional(list(string), [])
-  })
-  default = {
-    enabled                   = false
-    allow_external_principals = false
-    principals                = []
-  }
-}
-
-variable "enable_auto_accept" {
-  type    = bool
-  default = true
-}
-
-variable "shared" {
-  type = object({
-    ram_shares     = any
-    resolver_rules = any
-  })
-  default = {
-    ram_shares     = {}
-    resolver_rules = {}
-  }
-}
-
-variable "association_zone_ids" {
-  type    = set(string)
-  default = []
-}
-
-variable "custom_resolver_rules" {
-  description = "Custom resolver rules to create"
-  type        = any
+  description = "Extra tags to add to the resources"
+  type        = map(string)
   default     = {}
 }

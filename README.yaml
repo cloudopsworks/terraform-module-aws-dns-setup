@@ -1,4 +1,4 @@
-name: Terraform Transit Gateway Module
+name: Terraform AWS DNS Setup Module
 #logo: logo/logo.jpg
 
 license: "APACHE2"
@@ -8,10 +8,14 @@ copyrights:
     url: "https://cloudops.works"
     year: "2024"
 
-github_repo: cloudopsworks/terraform-module-aws-vpc-setup
+github_repo: cloudopsworks/terraform-module-aws-dns-setup
 
 description: |-
-  VPC Module for setting up transit gateway with ResourceAccessMananger support.
+  This Terraform module sets up a DNS infrastructure on AWS, including Route 53 resolver endpoints and custom resolver 
+  rules. It supports both inbound and outbound resolver endpoints, integrates with AWS Resource Access Manager (RAM) 
+  for resource sharing, and allows for custom resolver rules and associations. The module is designed to be used in a 
+  hub-and-spoke network topology, with configurable options for VPC, subnets, and security groups. It also includes 
+  support for tagging and various protocols such as DoH and Do53.
 
 # Introduction to the project
 #introduction: |-
