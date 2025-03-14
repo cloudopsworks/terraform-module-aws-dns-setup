@@ -96,7 +96,7 @@ module "resolver_endpoint_out" {
   create              = true
   name                = "rslvr-out-${local.system_name}"
   direction           = "OUTBOUND"
-  subnet_ids          = var.max_resolver_enis > 2 ? slice(var.subnet_ids, 0, var.max_resolver_enis - 1) : var.subnet_ids
+  subnet_ids          = var.max_resolver_enis > 0 ? slice(var.subnet_ids, 0, var.max_resolver_enis) : var.subnet_ids
   vpc_id              = var.vpc_id
   protocols           = ["DoH", "Do53"]
   tags                = local.all_tags
