@@ -78,7 +78,7 @@ variable "max_resolver_enis" {
   type    = number
   default = -1
   validation {
-    condition = var.max_resolver_enis == -1 || var.max_resolver_enis >= 2
+    condition     = var.max_resolver_enis == -1 || var.max_resolver_enis >= 2
     error_message = "max_resolver_enis must be -1 (All) or greater than or equal to 2"
   }
 }
