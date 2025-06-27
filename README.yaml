@@ -18,17 +18,105 @@ description: |-
   support for tagging and various protocols such as DoH and Do53.
 
 # Introduction to the project
-#introduction: |-
-#  This is an introduction.
+introduction: |-
+  This Terraform module provides a comprehensive solution for setting up DNS infrastructure on AWS. It supports:
+  - Creation of both private and public Route53 zones
+  - DNS resolver endpoint configuration (inbound and outbound)
+  - Integration with AWS Resource Access Manager (RAM) for cross-account sharing
+  - Custom resolver rules with flexible configuration options
+  - VPC associations and authorizations
+  - Support for hub-and-spoke network architectures
 
 # How to use this project
-#usage: |-
+usage: |-
+  The module can be configured using a map of zones and resolver rules. Basic configuration example:
+
+  ```hcl
+  module "dns_setup" {
+    source = "cloudopsworks/aws-dns-setup/module"
+
+    zones = {
+      "example.com" = {
+        domain_name = "example.com"
+        private     = true
+        comment     = "Private zone for example.com"
+        tags        = { Environment = "prod" }
+      }
+    }
+
+    vpc_id         = "vpc-1234567890"
+    vpc_cidr_block = "10.0.0.0/16"
+    subnet_ids     = ["subnet-1", "subnet-2"]
+
+    ram = {
+      enabled    = true
+      principals = ["123456789012"]
+    }
+  }
+  ```
 
 # Example usage
-#examples: |-
+examples: |-
+  Terragrunt configuration example:
+
+  ```hcl
+  # terragrunt.hcl
+  include {
+    path = find_in_parent_folders()
+  }
+
+  terraform {
+    source = "git::https://github.com/cloudopsworks/terraform-module-aws-dns-setup.git?ref=v1.0.0"
+  }
+
+  inputs = {
+    zones = {
+      "internal.example.com" = {
+        domain_name = "internal.example.com"
+        private     = true
+        comment     = "Internal DNS zone"
+      }
+    }
+
+    custom_resolver_rules = {
+      "onprem-forward" = {
+        domain_name    = "onprem.example.com"
+        rule_type      = "FORWARD"
+        addresses      = ["10.0.0.10", "10.0.0.11"]
+        associate_vpc  = true
+      }
+    }
+  }
+  ```
 
 # How to get started quickly
-#quickstart: |-
+quickstart: |-
+  1. Add the module to your Terraform configuration:
+     ```hcl
+     module "dns_setup" {
+       source = "cloudopsworks/aws-dns-setup/module"
+
+       zones = {
+         "example.com" = {
+           domain_name = "example.com"
+           private     = true
+         }
+       }
+       vpc_id     = "vpc-1234567890"
+       subnet_ids = ["subnet-1", "subnet-2"]
+     }
+     ```
+
+  2. Initialize Terraform:
+     ```bash
+     terraform init
+     ```
+
+  3. Review and apply the changes:
+     ```bash
+     terraform plan
+     terraform apply
+     ```
 
 include:
   - "docs/targets.md"
