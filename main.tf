@@ -44,7 +44,7 @@ resource "aws_route53_zone" "this" {
   }
 
   tags = merge(
-    lookup(each.value, "tags", {}),
+    lookup(each.value, "tags", []),
     local.all_tags
   )
   lifecycle {
