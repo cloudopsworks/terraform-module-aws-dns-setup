@@ -13,11 +13,11 @@
 # Terraform AWS DNS Setup Module
 
 
-This Terraform module sets up a DNS infrastructure on AWS, including Route 53 resolver endpoints and custom resolver 
-rules. It supports both inbound and outbound resolver endpoints, integrates with AWS Resource Access Manager (RAM) 
-for resource sharing, and allows for custom resolver rules and associations. The module is designed to be used in a 
-hub-and-spoke network topology, with configurable options for VPC, subnets, and security groups. It also includes 
-support for tagging and various protocols such as DoH and Do53.
+This Terraform module facilitates the deployment and management of DNS infrastructure on AWS. It handles the creation 
+of Route 53 zones (both public and private), configures Route 53 Resolver endpoints (inbound and outbound) for 
+hybrid cloud architectures, and manages custom resolver rules. The module is specifically designed for 
+hub-and-spoke network topologies, offering seamless integration with AWS Resource Access Manager (RAM) to share 
+DNS resolution capabilities across multiple AWS accounts within an organization.
 
 
 ---
@@ -52,13 +52,13 @@ We have [*lots of terraform modules*][terraform_modules] that are Open Source an
 
 ## Introduction
 
-This Terraform module provides a comprehensive solution for setting up DNS infrastructure on AWS. It supports:
-- Creation of both private and public Route53 zones
-- DNS resolver endpoint configuration (inbound and outbound)
-- Integration with AWS Resource Access Manager (RAM) for cross-account sharing
-- Custom resolver rules with flexible configuration options
-- VPC associations and authorizations
-- Support for hub-and-spoke network architectures
+The Terraform AWS DNS Setup module provides a centralized way to manage DNS across your AWS organization.
+Key features include:
+- **Zone Management**: Automated creation of private and public Route 53 Hosted Zones.
+- **Hybrid Connectivity**: Setup of Inbound and Outbound Resolver Endpoints for cross-environment DNS resolution.
+- **Resource Sharing**: Integration with AWS RAM for sharing resolver rules and endpoints with spoke accounts.
+- **Customizable Routing**: Support for custom resolver rules (FORWARD/SYSTEM) to direct traffic to on-premises or other DNS servers.
+- **VPC Integration**: Automated VPC association and authorization for private DNS zones.
 
 ## Usage
 
@@ -67,91 +67,174 @@ This Terraform module provides a comprehensive solution for setting up DNS infra
 Instead pin to the release tag (e.g. `?ref=vX.Y.Z`) of one of our [latest releases](https://github.com/cloudopsworks/terraform-module-aws-dns-setup/releases).
 
 
-The module can be configured using a map of zones and resolver rules. Basic configuration example:
+To implement this module using Terragrunt, configure your `terragrunt.hcl` with the necessary inputs. The module expects a structured configuration that can be represented in YAML format for clarity.
 
-```hcl
-module "dns_setup" {
-  source = "cloudopsworks/aws-dns-setup/module"
+### Variable Specifications
 
-  zones = {
-    "example.com" = {
-      domain_name = "example.com"
-      private     = true
-      comment     = "Private zone for example.com"
-      tags        = { Environment = "prod" }
-    }
-  }
+| Variable | Type | Required | Description |
+|----------|------|----------|-------------|
+| `org` | `object` | **Yes** | Organization details including name, unit, and environment info. |
+| `is_hub` | `bool` | No | Set to `true` to enable Hub features (resolver endpoints). Default: `false`. |
+| `zones` | `map(any)` | No | Configuration for Route 53 zones. |
+| `vpc_id` | `string` | No* | VPC ID for private zones and resolver endpoints. |
+| `subnet_ids` | `list(string)` | No* | Subnet IDs for resolver endpoints (Required if `is_hub` is true). |
+| `ram` | `object` | No | Configuration for AWS RAM sharing. |
+| `custom_resolver_rules` | `map(any)` | No | Custom DNS forwarding rules. |
 
-  vpc_id         = "vpc-1234567890"
-  vpc_cidr_block = "10.0.0.0/16"
-  subnet_ids     = ["subnet-1", "subnet-2"]
+### Full Configuration Schema (YAML Format)
 
-  ram = {
-    enabled    = true
-    principals = ["123456789012"]
-  }
-}
+The following YAML structure represents the complete configuration options available:
+
+```yaml
+# Organization Metadata
+org:
+  organization_name: "example"     # (Required) The name of the organization.
+  organization_unit: "platform"    # (Required) The organizational unit.
+  environment_type: "prod"        # (Required) Type of environment (e.g., prod, non-prod).
+  environment_name: "production"  # (Required) Specific environment name.
+
+# Deployment Mode
+is_hub: true                      # (Optional) Whether this instance acts as a DNS Hub. (Default: false)
+spoke_def: "001"                  # (Optional) 3-digit spoke identifier. (Default: "001")
+
+# Network Configuration
+vpc_id: "vpc-12345678"            # (Optional) Target VPC ID. Required for private zones. (Default: "")
+vpc_cidr_block: "10.0.0.0/16"     # (Optional) VPC CIDR for resolver security groups. (Default: "")
+subnet_ids:                       # (Optional) Subnets for resolver ENIs. (Default: [])
+  - "subnet-abc123"
+  - "subnet-def456"
+
+# Route 53 Zones
+zones:
+  "internal.example.com":
+    domain_name: "internal.example.com" # (Required) Domain name.
+    private: true                       # (Optional) Private hosted zone if true. (Default: true)
+    comment: "Internal zone"            # (Optional) Zone description.
+    force_destroy: false                # (Optional) Allow deletion of non-empty zone. (Default: false)
+    tags:                               # (Optional) Zone-specific tags.
+      Component: "DNS"
+
+# Resolver Configuration
+dns_vpc:
+  vpc_id: "vpc-12345678"          # (Optional) VPC ID for resolver. (Default: "")
+  vpc_region: "us-east-1"         # (Optional) Region for resolver. (Default: "us-east-1")
+
+# Resource Sharing (RAM)
+ram:
+  enabled: true                   # (Optional) Enable sharing via RAM. (Default: false)
+  allow_external_principals: false # (Optional) Allow sharing outside the Org. (Default: false)
+  principals:                      # (Optional) List of AWS Accounts/OUs. (Default: [])
+    - "123456789012"
+
+# Custom Forwarding Rules
+custom_resolver_rules:
+  onprem-dns:
+    domain_name: "corp.internal"  # (Required) On-prem domain.
+    rule_type: "FORWARD"           # (Optional) Rule type: FORWARD or SYSTEM. (Default: FORWARD)
+    addresses: ["10.50.0.10"]      # (Optional) Target DNS servers.
+    associate_vpc: true            # (Optional) Associate with local VPC. (Default: false)
+
+# Operational Settings
+enable_auto_accept: true          # (Optional) Auto-accept RAM shares. (Default: true)
+max_resolver_enis: -1             # (Optional) Max ENIs for resolver. (Default: -1)
+extra_tags:                       # (Optional) Additional tags for all resources.
+  ManagedBy: "CloudOps"
+
+# Shared Resources (for Spoke accounts)
+shared:
+  resolver_rules:                 # (Optional) Map of resolver rules to associate.
+    hub-rule:
+      id: "rslvr-rr-12345678"     # (Required) The ID of the resolver rule.
+      domain_name: "corp.internal" # (Optional) Domain name for the rule.
 ```
 
 ## Quick Start
 
-1. Add the module to your Terraform configuration:
-   ```hcl
-   module "dns_setup" {
-     source = "cloudopsworks/aws-dns-setup/module"
-
-     zones = {
-       "example.com" = {
-         domain_name = "example.com"
-         private     = true
-       }
-     }
-     vpc_id     = "vpc-1234567890"
-     subnet_ids = ["subnet-1", "subnet-2"]
-   }
-   ```
-
-2. Initialize Terraform:
+1. **Configure Terragrunt**: Create a `terragrunt.hcl` file in your environment directory.
+2. **Define Inputs**: Populate the `inputs` block with your organization and VPC details.
+3. **Deploy**:
    ```bash
-   terraform init
+   terragrunt plan
+   terragrunt apply
    ```
-
-3. Review and apply the changes:
-   ```bash
-   terraform plan
-   terraform apply
-   ```
+4. **Verify**: Check the Route 53 dashboard for your zones and resolver endpoints.
 
 
 ## Examples
 
-Terragrunt configuration example:
+### Hub Configuration with Terragrunt
+Example of a Hub setup with resolver endpoints and RAM sharing:
 
 ```hcl
-# terragrunt.hcl
-include {
+terraform {
+  source = "git::https://github.com/cloudopsworks/terraform-module-aws-dns-setup.git?ref=v1.0.0"
+}
+
+include "root" {
   path = find_in_parent_folders()
 }
 
+inputs = {
+  org = {
+    organization_name = "cloudops"
+    organization_unit = "shared"
+    environment_type  = "prod"
+    environment_name  = "hub"
+  }
+
+  is_hub         = true
+  vpc_id         = "vpc-0123456789abcdef0"
+  vpc_cidr_block = "10.0.0.0/16"
+  subnet_ids     = ["subnet-12345", "subnet-67890"]
+
+  zones = {
+    "cloudops.internal" = {
+      domain_name = "cloudops.internal"
+      private     = true
+      comment     = "Main internal zone"
+    }
+  }
+
+  ram = {
+    enabled    = true
+    principals = ["arn:aws:organizations::123456789012:ou/o-example/ou-1234"]
+  }
+
+  custom_resolver_rules = {
+    "on-prem" = {
+      domain_name = "internal.corp"
+      rule_type   = "FORWARD"
+      addresses   = ["172.16.0.10", "172.16.1.10"]
+    }
+  }
+}
+```
+
+### Spoke Configuration with Terragrunt
+Example of a Spoke setup associating with Hub resolver rules:
+
+```hcl
 terraform {
   source = "git::https://github.com/cloudopsworks/terraform-module-aws-dns-setup.git?ref=v1.0.0"
 }
 
 inputs = {
-  zones = {
-    "internal.example.com" = {
-      domain_name = "internal.example.com"
-      private     = true
-      comment     = "Internal DNS zone"
-    }
+  org = {
+    organization_name = "cloudops"
+    organization_unit = "engineering"
+    environment_type  = "dev"
+    environment_name  = "project-a"
   }
 
-  custom_resolver_rules = {
-    "onprem-forward" = {
-      domain_name    = "onprem.example.com"
-      rule_type      = "FORWARD"
-      addresses      = ["10.0.0.10", "10.0.0.11"]
-      associate_vpc  = true
+  is_hub = false
+  vpc_id = "vpc-fedcba9876543210"
+
+  shared = {
+    resolver_rules = {
+      "hub-rule" = {
+        id          = "rslvr-rr-1234567890"
+        domain_name = "cloudops.internal"
+      }
     }
   }
 }
@@ -175,7 +258,7 @@ Available targets:
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 5.0 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.4 |
 
 ## Providers
 
@@ -276,7 +359,7 @@ Please use the [issue tracker](https://github.com/cloudopsworks/terraform-module
 
 ## Copyrights
 
-Copyright © 2024-2025 [Cloud Ops Works LLC](https://cloudops.works)
+Copyright © 2024-2026 [Cloud Ops Works LLC](https://cloudops.works)
 
 
 
