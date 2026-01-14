@@ -92,8 +92,8 @@ variable "shared" {
 #  - <zone_id_2>
 variable "association_zone_ids" {
   description = "List of Route53 zone IDs to associate with the DNS resolver. This is used to link the resolver with specific zones for DNS resolution."
-  type    = set(string)
-  default = []
+  type        = set(string)
+  default     = []
 }
 
 ## Custom Resolver Rules - YAML Format:
