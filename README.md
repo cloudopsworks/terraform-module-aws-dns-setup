@@ -59,6 +59,7 @@ Key features include:
 - **Resource Sharing**: Integration with AWS RAM for sharing resolver rules and endpoints with spoke accounts.
 - **Customizable Routing**: Support for custom resolver rules (FORWARD/SYSTEM) to direct traffic to on-premises or other DNS servers.
 - **VPC Integration**: Automated VPC association and authorization for private DNS zones.
+- **Scale and Control**: Support for multiple VPC associations and fine-grained control over resolver ENI placement.
 
 ## Usage
 
@@ -69,101 +70,7 @@ Instead pin to the release tag (e.g. `?ref=vX.Y.Z`) of one of our [latest releas
 
 To implement this module using Terragrunt, configure your `terragrunt.hcl` with the necessary inputs. The module expects a structured configuration that can be represented in YAML format for clarity.
 
-### Variable Specifications
-
-| Variable | Type | Required | Description |
-|----------|------|----------|-------------|
-| `org` | `object` | **Yes** | Organization details including name, unit, and environment info. |
-| `is_hub` | `bool` | No | Set to `true` to enable Hub features (resolver endpoints). Default: `false`. |
-| `zones` | `map(any)` | No | Configuration for Route 53 zones. |
-| `vpc_id` | `string` | No* | VPC ID for private zones and resolver endpoints. |
-| `subnet_ids` | `list(string)` | No* | Subnet IDs for resolver endpoints (Required if `is_hub` is true). |
-| `ram` | `object` | No | Configuration for AWS RAM sharing. |
-| `custom_resolver_rules` | `map(any)` | No | Custom DNS forwarding rules. |
-
-### Full Configuration Schema (YAML Format)
-
-The following YAML structure represents the complete configuration options available:
-
-```yaml
-# Organization Metadata
-org:
-  organization_name: "example"     # (Required) The name of the organization.
-  organization_unit: "platform"    # (Required) The organizational unit.
-  environment_type: "prod"        # (Required) Type of environment (e.g., prod, non-prod).
-  environment_name: "production"  # (Required) Specific environment name.
-
-# Deployment Mode
-is_hub: true                      # (Optional) Whether this instance acts as a DNS Hub. (Default: false)
-spoke_def: "001"                  # (Optional) 3-digit spoke identifier. (Default: "001")
-
-# Network Configuration
-vpc_id: "vpc-12345678"            # (Optional) Target VPC ID. Required for private zones. (Default: "")
-vpc_cidr_block: "10.0.0.0/16"     # (Optional) VPC CIDR for resolver security groups. (Default: "")
-subnet_ids:                       # (Optional) Subnets for resolver ENIs. (Default: [])
-  - "subnet-abc123"
-  - "subnet-def456"
-
-# Route 53 Zones
-zones:
-  "internal.example.com":
-    domain_name: "internal.example.com" # (Required) Domain name.
-    private: true                       # (Optional) Private hosted zone if true. (Default: true)
-    comment: "Internal zone"            # (Optional) Zone description.
-    force_destroy: false                # (Optional) Allow deletion of non-empty zone. (Default: false)
-    tags:                               # (Optional) Zone-specific tags.
-      Component: "DNS"
-
-# Resolver Configuration
-dns_vpc:
-  vpc_id: "vpc-12345678"          # (Optional) VPC ID for resolver. (Default: "")
-  vpc_region: "us-east-1"         # (Optional) Region for resolver. (Default: "us-east-1")
-
-# Resource Sharing (RAM)
-ram:
-  enabled: true                   # (Optional) Enable sharing via RAM. (Default: false)
-  allow_external_principals: false # (Optional) Allow sharing outside the Org. (Default: false)
-  principals:                      # (Optional) List of AWS Accounts/OUs. (Default: [])
-    - "123456789012"
-
-# Custom Forwarding Rules
-custom_resolver_rules:
-  onprem-dns:
-    domain_name: "corp.internal"  # (Required) On-prem domain.
-    rule_type: "FORWARD"           # (Optional) Rule type: FORWARD or SYSTEM. (Default: FORWARD)
-    addresses: ["10.50.0.10"]      # (Optional) Target DNS servers.
-    associate_vpc: true            # (Optional) Associate with local VPC. (Default: false)
-
-# Operational Settings
-enable_auto_accept: true          # (Optional) Auto-accept RAM shares. (Default: true)
-max_resolver_enis: -1             # (Optional) Max ENIs for resolver. (Default: -1)
-extra_tags:                       # (Optional) Additional tags for all resources.
-  ManagedBy: "CloudOps"
-
-# Shared Resources (for Spoke accounts)
-shared:
-  resolver_rules:                 # (Optional) Map of resolver rules to associate.
-    hub-rule:
-      id: "rslvr-rr-12345678"     # (Required) The ID of the resolver rule.
-      domain_name: "corp.internal" # (Optional) Domain name for the rule.
-```
-
-## Quick Start
-
-1. **Configure Terragrunt**: Create a `terragrunt.hcl` file in your environment directory.
-2. **Define Inputs**: Populate the `inputs` block with your organization and VPC details.
-3. **Deploy**:
-   ```bash
-   terragrunt plan
-   terragrunt apply
-   ```
-4. **Verify**: Check the Route 53 dashboard for your zones and resolver endpoints.
-
-
-## Examples
-
-### Hub Configuration with Terragrunt
-Example of a Hub setup with resolver endpoints and RAM sharing:
+### Terragrunt Usage Example
 
 ```hcl
 terraform {
@@ -172,6 +79,119 @@ terraform {
 
 include "root" {
   path = find_in_parent_folders()
+}
+
+inputs = {
+  # All variables are passed here
+  org = {
+    organization_name = "example"
+    organization_unit = "platform"
+    environment_type  = "prod"
+    environment_name  = "production"
+  }
+  # ... other inputs ...
+}
+```
+
+### Full Configuration Schema (YAML Format)
+
+The following YAML structure represents the complete configuration options available for the module variables:
+
+```yaml
+# --- Variables from variables.tf ---
+
+# is_hub: false                        # (Optional) Whether this instance acts as a DNS Hub. (Default: false)
+# spoke_def: "001"                     # (Optional) 3-digit spoke identifier. (Default: "001")
+# extra_tags:                          # (Optional) Extra tags to add to the resources. (Default: {})
+#   Tag1: "Value1"
+
+# org:                                 # (Required) Organization details
+#   organization_name: "example"       # (Required) The name of the organization.
+#   organization_unit: "platform"      # (Required) The organizational unit.
+#   environment_type: "prod"           # (Required) Type of environment (e.g., prod, non-prod).
+#   environment_name: "production"     # (Required) Specific environment name.
+
+# --- Variables from variables-dns.tf ---
+
+# zones:                               # (Optional) Map of Route53 zones to create.
+#   example-zone:
+#     domain_name: "example.com"      # (Required) The domain name of the Route53 zone.
+#     comment: "Example zone"         # (Optional) A comment for the Route53 zone. (Default: "Managed by Terraform")
+#     private: true                   # (Optional) Whether the zone is private or public. (Default: false)
+#     force_destroy: false            # (Optional) Whether to force destroy the zone even if it contains records. (Default: false)
+#     delegation_set_id: "N1234567"   # (Optional) The ID of the delegation set to use for the zone. (Default: null)
+#     tags:                           # (Optional) A map of tags to assign to the zone. (Default: {})
+#       Environment: "prod"
+
+# vpc_id: "vpc-12345678"               # (Optional) VPC ID to associate with the Route53 zones. Required for private zones.
+# vpc_cidr_block: "10.0.0.0/16"        # (Optional) CIDR block for the VPC. Required for private zones.
+# subnet_ids: ["subnet-1", "subnet-2"] # (Optional) List of subnet IDs where the DNS resolver will be deployed.
+
+# dns_vpc:                             # (Optional) VPC configuration for DNS resolver.
+#   vpc_id: "vpc-12345678"             # (Optional) VPC ID for the DNS resolver. (Default: "")
+#   vpc_region: "us-east-1"            # (Optional) AWS region for the DNS resolver. (Default: "us-east-1")
+
+# ram:                                 # (Optional) Resource Access Manager (RAM) configuration.
+#   enabled: true                      # (Optional) Enable Resource Access Manager (RAM) sharing. (Default: false)
+#   allow_external_principals: false   # (Optional) Allow sharing with external principals. (Default: false)
+#   principals: ["123456789012"]       # (Optional) List of AWS account IDs or OU ARNs to share with. (Default: [])
+
+# enable_auto_accept: true             # (Optional) Enable automatic acceptance of RAM shares. (Default: true)
+
+# shared:                              # (Optional) Shared configuration for the DNS resolver.
+#   ram_shares: {}                     # (Optional) RAM shares configuration. (Default: {})
+#   resolver_rules: {}                 # (Optional) Resolver rules configuration. (Default: {})
+
+# association_zone_ids:                # (Optional) List of Route53 zone IDs to associate with the DNS resolver.
+#   - "Z1234567890"
+
+# custom_resolver_rules:               # (Optional) Map of custom resolver rules to create.
+#   rule1:
+#     domain_name: "onprem.internal"   # (Required) Domain name for the resolver rule.
+#     rule_type: "FORWARD"             # (Optional) Type of resolver rule. (FORWARD, SYSTEM). (Default: FORWARD)
+#     addresses: ["10.0.0.1"]          # (Optional) Target IP addresses for the rule. (Default: inbound resolver IPs)
+#     associate_vpc: true              # (Optional) Whether to associate the rule with the VPC. (Default: false)
+
+# max_resolver_enis: -1                # (Optional) Maximum number of resolver ENIs to create. (Default: -1)
+```
+
+### Variable Specifications Table
+
+| Variable | Type | Required | Description |
+|----------|------|----------|-------------|
+| `org` | `object` | **Yes** | Organization details including name, unit, and environment info. |
+| `is_hub` | `bool` | No | Set to `true` to enable Hub features (resolver endpoints). Default: `false`. |
+| `zones` | `map(any)` | No | Configuration for Route 53 zones. |
+| `vpc_id` | `string` | No* | VPC ID for private zones and resolver endpoints. |
+| `vpc_cidr_block` | `string` | No* | CIDR block for the VPC. Required for private zones. |
+| `subnet_ids` | `list(string)` | No* | Subnet IDs for resolver endpoints (Required if `is_hub` is true). |
+| `dns_vpc` | `object` | No | VPC configuration for DNS resolver. |
+| `ram` | `object` | No | Configuration for AWS RAM sharing. |
+| `custom_resolver_rules` | `map(any)` | No | Custom DNS forwarding rules. |
+| `shared` | `object` | No | Shared resources for spoke accounts. |
+| `extra_tags` | `map(string)` | No | Additional tags for all resources. |
+
+## Quick Start
+
+Follow these steps to quickly deploy the DNS infrastructure:
+1. **Initialize Terragrunt**: Ensure you have `terragrunt.hcl` set up.
+2. **Define Inputs**: Fill in the `org`, `vpc_id`, and `zones` (for Hub) or `shared` (for Spoke).
+3. **Plan and Deploy**:
+   ```bash
+   terragrunt plan
+   terragrunt apply
+   ```
+4. **Verify**: Check Route 53 Resolver Rules and Zones in the AWS Console.
+
+
+## Examples
+
+### Hub Configuration
+Deployment of a DNS Hub with Inbound/Outbound endpoints and RAM sharing to the organization.
+
+```hcl
+terraform {
+  source = "git::https://github.com/cloudopsworks/terraform-module-aws-dns-setup.git?ref=v1.0.0"
 }
 
 inputs = {
@@ -210,8 +230,8 @@ inputs = {
 }
 ```
 
-### Spoke Configuration with Terragrunt
-Example of a Spoke setup associating with Hub resolver rules:
+### Spoke Configuration
+Deployment in a spoke account, associating with resolver rules shared from the Hub.
 
 ```hcl
 terraform {
@@ -249,6 +269,9 @@ Available targets:
   help                                Help screen
   help/all                            Display help for all targets
   help/short                          This help short screen
+  init/aws                            Initialize the project for a specific cloud provider: AWS
+  init/azurerm                        Initialize the project for a specific cloud provider: Azure RM
+  init/gcp                            Initialize the project for a specific cloud provider: GCP
   lint                                Lint terraform/opentofu code
   tag                                 Tag the current version
 
@@ -264,7 +287,7 @@ Available targets:
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 5.100.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.30.0 |
 
 ## Modules
 

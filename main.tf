@@ -15,7 +15,7 @@ locals {
       tags        = v.tags
       vpc = {
         vpc_id     = var.vpc_id
-        vpc_region = data.aws_region.current.name
+        vpc_region = data.aws_region.current.id
       }
     } if try(v.private, false) == true
   }
