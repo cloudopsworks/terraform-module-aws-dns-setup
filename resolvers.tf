@@ -17,6 +17,12 @@ locals {
     v.domain_name
     if var.is_hub == true
   ])
+  subnet_list = var.max_resolver_enis > 0 ? slice(var.subnet_ids, 0, var.max_resolver_enis) : var.subnet_ids
+  ip_address_obj = [
+    for subnet in local.subnet_list : {
+      subnet_id = subnet
+    }
+  ]
 }
 
 # Resolve the inbound domain with inbound resolver through te outbound resolver
@@ -26,9 +32,9 @@ resource "aws_route53_resolver_rule" "inbound_rules" {
   name                 = "rslvr-rr-in-${replace(lower(each.key), ".", "-")}-${local.system_name}"
   domain_name          = lower(each.value)
   rule_type            = "FORWARD"
-  resolver_endpoint_id = module.resolver_endpoint_out[0].route53_resolver_endpoint_id
+  resolver_endpoint_id = module.resolver_endpoint_out[0].id
   dynamic "target_ip" {
-    for_each = module.resolver_endpoint_in[0].route53_resolver_endpoint_ip_addresses
+    for_each = module.resolver_endpoint_in[0].ip_addresses
     content {
       ip = target_ip.value.ip
     }
@@ -43,9 +49,9 @@ resource "aws_route53_resolver_rule" "custom_inbound_rules" {
   name                 = "rslvr-rr-in-${replace(each.key, ".", "-")}-${local.system_name}"
   domain_name          = lower(each.value.domain_name)
   rule_type            = upper(try(each.value.rule_type, "FORWARD"))
-  resolver_endpoint_id = module.resolver_endpoint_out[0].route53_resolver_endpoint_id
+  resolver_endpoint_id = module.resolver_endpoint_out.id
   dynamic "target_ip" {
-    for_each = try(each.value.addresses, module.resolver_endpoint_in[0].route53_resolver_endpoint_ip_addresses)
+    for_each = try(each.value.addresses, module.resolver_endpoint_in.ip_addresses)
     content {
       ip = target_ip.value.ip
     }
@@ -71,41 +77,41 @@ resource "aws_route53_resolver_rule_association" "custom_inbound_rules" {
 }
 
 module "resolver_endpoint_in" {
-  count      = var.is_hub ? 1 : 0
-  depends_on = [aws_route53_zone.this]
-  source     = "terraform-aws-modules/route53/aws//modules/resolver-endpoints"
-  version    = "~> 3.0"
-
-  create              = true
+  depends_on          = [aws_route53_zone.this]
+  source              = "terraform-aws-modules/route53/aws//modules/resolver-endpoint"
+  version             = "~> 6.3"
+  create              = var.is_hub
   name                = "rslvr-in-${local.system_name}"
   direction           = "INBOUND"
-  subnet_ids          = var.max_resolver_enis > 0 ? slice(var.subnet_ids, 0, var.max_resolver_enis) : var.subnet_ids
+  ip_address          = local.ip_address_obj
   vpc_id              = var.vpc_id
   protocols           = ["DoH", "Do53"]
-  tags                = local.all_tags
   security_group_name = "rslvr-in-${local.system_name}-sg"
-  security_group_ingress_cidr_blocks = [
-    var.vpc_cidr_block
-  ]
   security_group_tags = local.all_tags
+  security_group_ingress_rules = {
+    vpc = {
+      cidr_ipv4 = var.vpc_cidr_block
+    }
+  }
+  tags = local.all_tags
 }
 
 module "resolver_endpoint_out" {
-  count      = var.is_hub ? 1 : 0
-  depends_on = [aws_route53_zone.this]
-  source     = "terraform-aws-modules/route53/aws//modules/resolver-endpoints"
-  version    = "~> 3.0"
-
-  create              = true
+  depends_on          = [aws_route53_zone.this]
+  source              = "terraform-aws-modules/route53/aws//modules/resolver-endpoint"
+  version             = "~> 6.3"
+  create              = var.is_hub
   name                = "rslvr-out-${local.system_name}"
   direction           = "OUTBOUND"
-  subnet_ids          = var.max_resolver_enis > 0 ? slice(var.subnet_ids, 0, var.max_resolver_enis) : var.subnet_ids
+  ip_address          = local.ip_address_obj
   vpc_id              = var.vpc_id
   protocols           = ["DoH", "Do53"]
-  tags                = local.all_tags
   security_group_name = "rslvr-out-${local.system_name}-sg"
-  security_group_ingress_cidr_blocks = [
-    var.vpc_cidr_block
-  ]
   security_group_tags = local.all_tags
+  security_group_ingress_rules = {
+    vpc = {
+      cidr_ipv4 = var.vpc_cidr_block
+    }
+  }
+  tags = local.all_tags
 }
