@@ -64,26 +64,24 @@ output "resolver_rules_associations" {
 
 output "resolver_endpoints" {
   value = {
-    inbound = {
-      for re in module.resolver_endpoint_in :
-      re.route53_resolver_endpoint_id => {
-        id                  = re.route53_resolver_endpoint_id
-        arn                 = re.route53_resolver_endpoint_arn
-        host_vpc_id         = re.route53_resolver_endpoint_host_vpc_id
-        security_groups_ids = re.route53_resolver_endpoint_security_group_ids
-        ip_addresses        = re.route53_resolver_endpoint_ip_addresses
+    inbound = var.is_hub ? {
+      module.resolver_endpoint_in.id = {
+        id                  = module.resolver_endpoint_in.id
+        arn                 = module.resolver_endpoint_in.arn
+        host_vpc_id         = module.resolver_endpoint_in.host_vpc_id
+        security_groups_ids = module.resolver_endpoint_in.security_group_ids
+        ip_addresses        = module.resolver_endpoint_in.ip_addresses
       }
-    }
-    outbound = {
-      for re in module.resolver_endpoint_out :
-      re.route53_resolver_endpoint_id => {
-        id                  = re.route53_resolver_endpoint_id
-        arn                 = re.route53_resolver_endpoint_arn
-        host_vpc_id         = re.route53_resolver_endpoint_host_vpc_id
-        security_groups_ids = re.route53_resolver_endpoint_security_group_ids
-        ip_addresses        = re.route53_resolver_endpoint_ip_addresses
+    } : null
+    outbound = var.is_hub ? {
+      module.resolver_endpoint_out.id = {
+        id                  = module.resolver_endpoint_out.id
+        arn                 = module.resolver_endpoint_out.arn
+        host_vpc_id         = module.resolver_endpoint_out.host_vpc_id
+        security_groups_ids = module.resolver_endpoint_out.security_group_ids
+        ip_addresses        = module.resolver_endpoint_out.ip_addresses
       }
-    }
+    } : null
   }
 }
 
