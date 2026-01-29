@@ -8,11 +8,20 @@
 #
 
 ## Zones Definitions - YAML:
+# | Field             | Type    | Required | Default                | Description                                                                        |
+# |-------------------|---------|----------|------------------------|------------------------------------------------------------------------------------|
+# | domain_name       | string  | Yes      | -                      | The domain name of the Route53 zone.                                               |
+# | comment           | string  | No       | "Managed by Terraform" | A comment for the Route53 zone.                                                    |
+# | private           | boolean | No       | false                  | Whether the zone is private or public.                                             |
+# | force_destroy     | boolean | No       | false                  | Whether to force destroy the zone even if it contains records.                     |
+# | delegation_set_id | string  | No       | null                   | The ID of the delegation set to use for the zone.                                  |
+# | tags              | map     | No       | {}                     | A map of tags to assign to the zone.                                               |
+#
 # zones:
-#   <zone_name>:
+#   example-zone:
 #     domain_name: "example.com"      # (Required) The domain name of the Route53 zone.
 #     comment: "Example zone"         # (Optional) A comment for the Route53 zone. (Default: "Managed by Terraform")
-#     private: true                   # (Optional) Whether the zone is private or public. (Default: true)
+#     private: true                   # (Optional) Whether the zone is private or public. (Default: false)
 #     force_destroy: false            # (Optional) Whether to force destroy the zone even if it contains records. (Default: false)
 #     delegation_set_id: "N1234567"   # (Optional) The ID of the delegation set to use for the zone. (Default: null)
 #     tags:                           # (Optional) A map of tags to assign to the zone. (Default: {})
@@ -37,6 +46,12 @@ variable "vpc_cidr_block" {
   default     = ""
 }
 
+## DNS VPC Configuration - YAML:
+# | Field      | Type   | Required | Default       | Description                                  |
+# |------------|--------|----------|---------------|----------------------------------------------|
+# | vpc_id     | string | No       | ""            | VPC ID for the DNS resolver.                 |
+# | vpc_region | string | No       | "us-east-1"   | AWS region for the DNS resolver.             |
+#
 # dns_vpc:
 #   vpc_id: "vpc-12345678"             # (Optional) VPC ID for the DNS resolver. (Default: "")
 #   vpc_region: "us-east-1"            # (Optional) AWS region for the DNS resolver. (Default: "us-east-1")
@@ -59,6 +74,13 @@ variable "subnet_ids" {
   default     = []
 }
 
+## RAM Configuration - YAML:
+# | Field                     | Type         | Required | Default | Description                                              |
+# |---------------------------|--------------|----------|---------|----------------------------------------------------------|
+# | enabled                   | boolean      | No       | false   | Enable Resource Access Manager (RAM) sharing.             |
+# | allow_external_principals | boolean      | No       | false   | Allow sharing with external principals.                  |
+# | principals                | list(string) | No       | []      | List of AWS account IDs or OU ARNs to share with.        |
+#
 # ram:
 #   enabled: true                      # (Optional) Enable Resource Access Manager (RAM) sharing. (Default: false)
 #   allow_external_principals: false   # (Optional) Allow sharing with external principals. (Default: false)
@@ -84,6 +106,12 @@ variable "enable_auto_accept" {
   default     = true
 }
 
+## Shared Configuration - YAML:
+# | Field          | Type | Required | Default | Description                      |
+# |----------------|------|----------|---------|----------------------------------|
+# | ram_shares     | any  | No       | {}      | RAM shares configuration.        |
+# | resolver_rules | any  | No       | {}      | Resolver rules configuration.    |
+#
 # shared:
 #   ram_shares: {}                     # (Optional) RAM shares configuration. (Default: {})
 #   resolver_rules: {}                 # (Optional) Resolver rules configuration. (Default: {})
@@ -109,6 +137,13 @@ variable "association_zone_ids" {
 }
 
 ## Custom Resolver Rules - YAML Format:
+# | Field         | Type         | Required | Default                | Description                                              |
+# |---------------|--------------|----------|------------------------|----------------------------------------------------------|
+# | domain_name   | string       | Yes      | -                      | Domain name for the resolver rule.                       |
+# | rule_type     | string       | No       | "FORWARD"              | Type of resolver rule. (FORWARD, SYSTEM)                 |
+# | addresses     | list(string) | No       | inbound resolver IPs   | Target IP addresses for the rule.                        |
+# | associate_vpc | boolean      | No       | false                  | Whether to associate the rule with the VPC.              |
+#
 # custom_resolver_rules:
 #   rule1:
 #     domain_name: "onprem.internal"   # (Required) Domain name for the resolver rule.
