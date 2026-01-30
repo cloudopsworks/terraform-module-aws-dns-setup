@@ -6,6 +6,23 @@
 #       WebSite: https://cloudops.works
 #     Distributed Under Apache v2.0 License
 #
+moved {
+  from = module.resolver_endpoint_in[0].aws_security_group.this[0]
+  to   = module.resolver_endpoint_in.aws_security_group.this[0]
+}
+moved {
+  from = module.resolver_endpoint_in[0].aws_route53_resolver_endpoint.this[0]
+  to   = module.resolver_endpoint_in.aws_route53_resolver_endpoint.this[0]
+}
+moved {
+  from = module.resolver_endpoint_out[0].aws_security_group.this[0]
+  to   = module.resolver_endpoint_out.aws_security_group.this[0]
+}
+moved {
+  from = module.resolver_endpoint_out[0].aws_route53_resolver_endpoint.this[0]
+  to   = module.resolver_endpoint_out.aws_route53_resolver_endpoint.this[0]
+}
+
 locals {
   custom_resolver_rules = {
     for k, v in var.custom_resolver_rules :
@@ -77,17 +94,18 @@ resource "aws_route53_resolver_rule_association" "custom_inbound_rules" {
 }
 
 module "resolver_endpoint_in" {
-  depends_on          = [aws_route53_zone.this]
-  source              = "terraform-aws-modules/route53/aws//modules/resolver-endpoint"
-  version             = "~> 6.3"
-  create              = var.is_hub
-  name                = "rslvr-in-${local.system_name}"
-  direction           = "INBOUND"
-  ip_address          = local.ip_address_obj
-  vpc_id              = var.vpc_id
-  protocols           = ["DoH", "Do53"]
-  security_group_name = "rslvr-in-${local.system_name}-sg"
-  security_group_tags = local.all_tags
+  depends_on                     = [aws_route53_zone.this]
+  source                         = "terraform-aws-modules/route53/aws//modules/resolver-endpoint"
+  version                        = "~> 6.3"
+  create                         = var.is_hub
+  name                           = "rslvr-in-${local.system_name}"
+  direction                      = "INBOUND"
+  ip_address                     = local.ip_address_obj
+  vpc_id                         = var.vpc_id
+  protocols                      = ["DoH", "Do53"]
+  security_group_name            = "rslvr-in-${local.system_name}-sg"
+  security_group_use_name_prefix = false
+  security_group_tags            = local.all_tags
   security_group_ingress_rules = {
     vpc = {
       cidr_ipv4 = var.vpc_cidr_block
@@ -97,17 +115,18 @@ module "resolver_endpoint_in" {
 }
 
 module "resolver_endpoint_out" {
-  depends_on          = [aws_route53_zone.this]
-  source              = "terraform-aws-modules/route53/aws//modules/resolver-endpoint"
-  version             = "~> 6.3"
-  create              = var.is_hub
-  name                = "rslvr-out-${local.system_name}"
-  direction           = "OUTBOUND"
-  ip_address          = local.ip_address_obj
-  vpc_id              = var.vpc_id
-  protocols           = ["DoH", "Do53"]
-  security_group_name = "rslvr-out-${local.system_name}-sg"
-  security_group_tags = local.all_tags
+  depends_on                     = [aws_route53_zone.this]
+  source                         = "terraform-aws-modules/route53/aws//modules/resolver-endpoint"
+  version                        = "~> 6.3"
+  create                         = var.is_hub
+  name                           = "rslvr-out-${local.system_name}"
+  direction                      = "OUTBOUND"
+  ip_address                     = local.ip_address_obj
+  vpc_id                         = var.vpc_id
+  protocols                      = ["DoH", "Do53"]
+  security_group_name            = "rslvr-out-${local.system_name}-sg"
+  security_group_use_name_prefix = false
+  security_group_tags            = local.all_tags
   security_group_ingress_rules = {
     vpc = {
       cidr_ipv4 = var.vpc_cidr_block
