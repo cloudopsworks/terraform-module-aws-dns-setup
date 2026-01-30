@@ -6,6 +6,15 @@
 #       WebSite: https://cloudops.works
 #     Distributed Under Apache v2.0 License
 #
+moved {
+  from = "module.resolver_endpoint_in[0]"
+  to   = "module.resolver_endpoint_in"
+}
+moved {
+  from = "module.resolver_endpoint_out[0]"
+  to   = "module.resolver_endpoint_out"
+}
+
 locals {
   custom_resolver_rules = {
     for k, v in var.custom_resolver_rules :
