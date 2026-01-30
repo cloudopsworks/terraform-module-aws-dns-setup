@@ -7,12 +7,20 @@
 #     Distributed Under Apache v2.0 License
 #
 moved {
-  from = "module.resolver_endpoint_in[0]"
-  to   = "module.resolver_endpoint_in"
+  from = module.resolver_endpoint_in[0].aws_security_group.this[0]
+  to   = module.resolver_endpoint_in.aws_security_group.this[0]
 }
 moved {
-  from = "module.resolver_endpoint_out[0]"
-  to   = "module.resolver_endpoint_out"
+  from = module.resolver_endpoint_in[0].aws_route53_resolver_endpoint.this[0]
+  to   = module.resolver_endpoint_in.aws_route53_resolver_endpoint.this[0]
+}
+moved {
+  from = module.resolver_endpoint_out[0].aws_security_group.this[0]
+  to   = module.resolver_endpoint_out.aws_security_group.this[0]
+}
+moved {
+  from = module.resolver_endpoint_out[0].aws_route53_resolver_endpoint.this[0]
+  to   = module.resolver_endpoint_out.aws_route53_resolver_endpoint.this[0]
 }
 
 locals {
