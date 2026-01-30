@@ -65,7 +65,7 @@ output "resolver_rules_associations" {
 output "resolver_endpoints" {
   value = {
     inbound = var.is_hub ? {
-      module.resolver_endpoint_in.id = {
+      (module.resolver_endpoint_in.id) = {
         id                  = module.resolver_endpoint_in.id
         arn                 = module.resolver_endpoint_in.arn
         host_vpc_id         = module.resolver_endpoint_in.host_vpc_id
@@ -74,7 +74,7 @@ output "resolver_endpoints" {
       }
     } : null
     outbound = var.is_hub ? {
-      module.resolver_endpoint_out.id = {
+      (module.resolver_endpoint_out.id) = {
         id                  = module.resolver_endpoint_out.id
         arn                 = module.resolver_endpoint_out.arn
         host_vpc_id         = module.resolver_endpoint_out.host_vpc_id
