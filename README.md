@@ -280,7 +280,7 @@ Available targets:
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.30.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 6.4 |
 
 ## Modules
 
