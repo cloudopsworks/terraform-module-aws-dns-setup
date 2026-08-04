@@ -69,14 +69,12 @@ inputs = {
   {{- end }}
   {{- range .optionalVariables }}
   {{- if not (eq .Name "extra_tags" "is_hub" "spoke_def" "org") }}
-  {{- if $.vpc_dependency_enabled }}
-  {{- if eq .Name "vpc_id"}}
+  {{- if and $.vpc_dependency_enabled (eq .Name "vpc_id") }}
   vpc_id             = dependency.vpc.outputs.vpc_id
-  {{- else if eq .Name "vpc_cidr_block"}}
+  {{- else if and $.vpc_dependency_enabled (eq .Name "vpc_cidr_block") }}
   vpc_cidr_block     = dependency.vpc.outputs.vpc_cidr_block
-  {{- else if eq .Name "subnet_ids"}}
+  {{- else if and $.vpc_dependency_enabled (eq .Name "subnet_ids") }}
   subnet_ids         = dependency.vpc.outputs.{{ $.vpc_subnet_type }}_subnets
-  {{- end}}
   {{- else }}
   {{ .Name }} = try(local.local_vars.{{ .Name }}, {{ .DefaultValue }})
   {{- end }}
