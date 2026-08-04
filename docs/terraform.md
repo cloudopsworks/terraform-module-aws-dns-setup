@@ -3,13 +3,13 @@
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.4 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.35 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 6.4 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 6.35 |
 
 ## Modules
 
@@ -17,7 +17,7 @@
 |------|--------|---------|
 | <a name="module_resolver_endpoint_in"></a> [resolver\_endpoint\_in](#module\_resolver\_endpoint\_in) | terraform-aws-modules/route53/aws//modules/resolver-endpoint | ~> 6.3 |
 | <a name="module_resolver_endpoint_out"></a> [resolver\_endpoint\_out](#module\_resolver\_endpoint\_out) | terraform-aws-modules/route53/aws//modules/resolver-endpoint | ~> 6.3 |
-| <a name="module_tags"></a> [tags](#module\_tags) | cloudopsworks/tags/local | 1.0.9 |
+| <a name="module_tags"></a> [tags](#module\_tags) | cloudopsworks/tags/local | 1.0.10 |
 
 ## Resources
 
@@ -43,31 +43,31 @@
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_association_zone_ids"></a> [association\_zone\_ids](#input\_association\_zone\_ids) | List of Route53 zone IDs to associate with the DNS resolver. This is used to link the resolver with specific zones for DNS resolution. | `set(string)` | `[]` | no |
-| <a name="input_custom_resolver_rules"></a> [custom\_resolver\_rules](#input\_custom\_resolver\_rules) | Map of custom resolver rules to create. Each key is the rule name, and the value is an object with the following attributes: domain\_name, rule\_type (FORWARD or SYSTEM), addresses (optional list of IP addresses), associate\_vpc (boolean). | `any` | `{}` | no |
-| <a name="input_dns_vpc"></a> [dns\_vpc](#input\_dns\_vpc) | VPC configuration for DNS resolver. This is used to specify the VPC ID and region where the DNS resolver will be created. | <pre>object({<br/>    vpc_id     = optional(string, "")<br/>    vpc_region = optional(string, "us-east-1")<br/>  })</pre> | <pre>{<br/>  "vpc_id": "",<br/>  "vpc_region": ""<br/>}</pre> | no |
-| <a name="input_enable_auto_accept"></a> [enable\_auto\_accept](#input\_enable\_auto\_accept) | Enable automatic acceptance of RAM shares for the DNS resolver. This is useful when sharing the resolver with other accounts. | `bool` | `true` | no |
+| <a name="input_association_zone_ids"></a> [association\_zone\_ids](#input\_association\_zone\_ids) | (Optional) Set of existing Route53 private zone IDs to associate with vpc\_id. Zones created by this module are associated automatically and should not be listed. (Default: []) | `set(string)` | `[]` | no |
+| <a name="input_custom_resolver_rules"></a> [custom\_resolver\_rules](#input\_custom\_resolver\_rules) | (Optional) Map of custom Route53 Resolver rules to create, keyed by rule name. Each value accepts domain\_name, rule\_type, addresses and associate\_vpc. Only applied when is\_hub is true. (Default: {}) | `any` | `{}` | no |
+| <a name="input_dns_vpc"></a> [dns\_vpc](#input\_dns\_vpc) | (Optional) Remote VPC authorized to associate with the private zones created here. When vpc\_id is empty no association authorization is emitted. (Default: {vpc\_id = "", vpc\_region = ""}) | <pre>object({<br/>    vpc_id     = optional(string, "")<br/>    vpc_region = optional(string, "us-east-1")<br/>  })</pre> | <pre>{<br/>  "vpc_id": "",<br/>  "vpc_region": ""<br/>}</pre> | no |
+| <a name="input_enable_auto_accept"></a> [enable\_auto\_accept](#input\_enable\_auto\_accept) | (Optional) Reserved flag for automatic acceptance of RAM shares. Currently declared for interface stability and not consumed by any resource; acceptance is driven by shared.ram\_shares together with ram.enabled. (Default: true) | `bool` | `true` | no |
 | <a name="input_extra_tags"></a> [extra\_tags](#input\_extra\_tags) | Extra tags to add to the resources | `map(string)` | `{}` | no |
 | <a name="input_is_hub"></a> [is\_hub](#input\_is\_hub) | Is this a hub or spoke configuration? | `bool` | `false` | no |
-| <a name="input_max_resolver_enis"></a> [max\_resolver\_enis](#input\_max\_resolver\_enis) | Maximum number of resolver ENIs to create. Set to -1 for all available ENIs, or a specific number greater than or equal to 2. | `number` | `-1` | no |
+| <a name="input_max_resolver_enis"></a> [max\_resolver\_enis](#input\_max\_resolver\_enis) | (Optional) Maximum number of resolver ENIs to create, taken from the head of subnet\_ids. Use -1 for all supplied subnets, or a value greater than or equal to 2. (Default: -1) | `number` | `-1` | no |
 | <a name="input_org"></a> [org](#input\_org) | Organization details | <pre>object({<br/>    organization_name = string<br/>    organization_unit = string<br/>    environment_type  = string<br/>    environment_name  = string<br/>  })</pre> | n/a | yes |
-| <a name="input_ram"></a> [ram](#input\_ram) | Resource Access Manager (RAM) configuration for sharing the DNS resolver across accounts. This includes whether to enable sharing, allow external principals, and a list of principals to share with. | <pre>object({<br/>    enabled                   = optional(bool, true)<br/>    allow_external_principals = optional(bool, false)<br/>    principals                = optional(list(string), [])<br/>  })</pre> | <pre>{<br/>  "allow_external_principals": false,<br/>  "enabled": false,<br/>  "principals": []<br/>}</pre> | no |
-| <a name="input_shared"></a> [shared](#input\_shared) | Shared configuration for the DNS resolver, including RAM shares and resolver rules. This is used to define how the resolver will be shared across accounts and any custom resolver rules. | <pre>object({<br/>    ram_shares     = any<br/>    resolver_rules = any<br/>  })</pre> | <pre>{<br/>  "ram_shares": {},<br/>  "resolver_rules": {}<br/>}</pre> | no |
+| <a name="input_ram"></a> [ram](#input\_ram) | (Optional) Resource Access Manager sharing configuration for the resolver rules. Controls whether sharing is enabled, whether external principals are allowed and which principals receive the shares. (Default: sharing disabled) | <pre>object({<br/>    enabled                   = optional(bool, true)<br/>    allow_external_principals = optional(bool, false)<br/>    principals                = optional(list(string), [])<br/>  })</pre> | <pre>{<br/>  "allow_external_principals": false,<br/>  "enabled": false,<br/>  "principals": []<br/>}</pre> | no |
+| <a name="input_shared"></a> [shared](#input\_shared) | (Optional) Spoke-side configuration consuming what a hub shared out: RAM resource shares to accept and resolver rules to associate with this VPC. Both keys are mandatory once the object is supplied. (Default: both empty) | <pre>object({<br/>    ram_shares     = any<br/>    resolver_rules = any<br/>  })</pre> | <pre>{<br/>  "ram_shares": {},<br/>  "resolver_rules": {}<br/>}</pre> | no |
 | <a name="input_spoke_def"></a> [spoke\_def](#input\_spoke\_def) | Spoke ID Number, must be a 3 digit number | `string` | `"001"` | no |
-| <a name="input_subnet_ids"></a> [subnet\_ids](#input\_subnet\_ids) | List of subnet IDs where the DNS resolver will be deployed. This is required for creating the resolver endpoints. | `list(string)` | `[]` | no |
-| <a name="input_vpc_cidr_block"></a> [vpc\_cidr\_block](#input\_vpc\_cidr\_block) | CIDR block for the VPC. This is required for private zones. | `string` | `""` | no |
-| <a name="input_vpc_id"></a> [vpc\_id](#input\_vpc\_id) | VPC ID to associate with the Route53 zones. This is required for private zones. | `string` | `""` | no |
-| <a name="input_zones"></a> [zones](#input\_zones) | Map of Route53 zones to create. Each key is the zone name, and the value is an object with the following attributes: domain\_name, comment, private (boolean), force\_destroy (boolean), delegation\_set\_id (optional), tags (optional). | `any` | `{}` | no |
+| <a name="input_subnet_ids"></a> [subnet\_ids](#input\_subnet\_ids) | (Optional) List of subnet IDs where the resolver endpoint ENIs are placed. At least two subnets in distinct AZs are required when is\_hub is true. (Default: []) | `list(string)` | `[]` | no |
+| <a name="input_vpc_cidr_block"></a> [vpc\_cidr\_block](#input\_vpc\_cidr\_block) | (Optional) CIDR block of the VPC, used as the ingress rule of the resolver endpoint security groups. Required when is\_hub is true. (Default: "") | `string` | `""` | no |
+| <a name="input_vpc_id"></a> [vpc\_id](#input\_vpc\_id) | (Optional) VPC ID to associate with the Route53 private zones and to host the resolver endpoints. Required when any zone is private or when is\_hub is true. (Default: "") | `string` | `""` | no |
+| <a name="input_zones"></a> [zones](#input\_zones) | (Optional) Map of Route53 zones to create, keyed by an arbitrary zone key. Each value accepts domain\_name, comment, private, force\_destroy, delegation\_set\_id and tags. (Default: {}) | `any` | `{}` | no |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| <a name="output_custom_resolver_rules"></a> [custom\_resolver\_rules](#output\_custom\_resolver\_rules) | n/a |
-| <a name="output_dns_vpc"></a> [dns\_vpc](#output\_dns\_vpc) | n/a |
-| <a name="output_ram"></a> [ram](#output\_ram) | n/a |
-| <a name="output_resolver_endpoints"></a> [resolver\_endpoints](#output\_resolver\_endpoints) | n/a |
-| <a name="output_resolver_rules"></a> [resolver\_rules](#output\_resolver\_rules) | n/a |
-| <a name="output_resolver_rules_associations"></a> [resolver\_rules\_associations](#output\_resolver\_rules\_associations) | n/a |
-| <a name="output_vpc_association_auth"></a> [vpc\_association\_auth](#output\_vpc\_association\_auth) | n/a |
-| <a name="output_zones"></a> [zones](#output\_zones) | n/a |
+| <a name="output_custom_resolver_rules"></a> [custom\_resolver\_rules](#output\_custom\_resolver\_rules) | Route53 Resolver rules built from `custom_resolver_rules`, keyed by rule name under the `inbound` key. Empty when `is_hub` is false. |
+| <a name="output_dns_vpc"></a> [dns\_vpc](#output\_dns\_vpc) | Networking context the DNS resources were deployed into: VPC id, the region resolved from the provider, VPC CIDR block and the subnets used for the resolver ENIs. |
+| <a name="output_ram"></a> [ram](#output\_ram) | AWS RAM sharing state for the resolver rules exported by this hub: resource shares, resource associations and principal associations for both zone-derived and custom rules. Consumed by spoke deployments through their `shared` variable. |
+| <a name="output_resolver_endpoints"></a> [resolver\_endpoints](#output\_resolver\_endpoints) | Inbound and outbound Route53 Resolver endpoints created on the hub, including their ids, ARNs, host VPC, security groups and IP addresses. Both keys are null when `is_hub` is false. |
+| <a name="output_resolver_rules"></a> [resolver\_rules](#output\_resolver\_rules) | Route53 Resolver FORWARD rules generated for the private zones hosted by this hub, keyed by rule name under the `inbound` key. Empty when `is_hub` is false. |
+| <a name="output_resolver_rules_associations"></a> [resolver\_rules\_associations](#output\_resolver\_rules\_associations) | Associations between the resolver rules shared from the hub (`shared.resolver_rules`) and this account's VPC, keyed by association name. Populated on spoke deployments. |
+| <a name="output_vpc_association_auth"></a> [vpc\_association\_auth](#output\_vpc\_association\_auth) | Cross-account VPC association authorizations issued for each private zone, keyed by zone key. Only populated when `dns_vpc.vpc_id` is set; the authorized account must complete the association on its side. |
+| <a name="output_zones"></a> [zones](#output\_zones) | Map of every Route53 hosted zone created by this module (public and private), keyed by domain name. Each entry exposes the zone id, ARN, name and delegated name servers. |

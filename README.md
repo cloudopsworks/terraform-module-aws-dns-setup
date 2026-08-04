@@ -10,13 +10,13 @@
 
 [![cloudopsworks][logo]](https://cloudopsworks.co/)
 
-# Terraform AWS DNS Setup Module
+# Terraform AWS DNS Setup Module [![Latest Release](https://img.shields.io/github/release/cloudopsworks/terraform-module-aws-dns-setup.svg?style=for-the-badge)](https://github.com/cloudopsworks/terraform-module-aws-dns-setup/releases/latest) [![Last Updated](https://img.shields.io/github/last-commit/cloudopsworks/terraform-module-aws-dns-setup.svg?style=for-the-badge)](https://github.com/cloudopsworks/terraform-module-aws-dns-setup/commits)
 
 
-This Terraform module facilitates the deployment and management of DNS infrastructure on AWS. It handles the creation 
-of Route 53 zones (both public and private), configures Route 53 Resolver endpoints (inbound and outbound) for 
-hybrid cloud architectures, and manages custom resolver rules. The module is specifically designed for 
-hub-and-spoke network topologies, offering seamless integration with AWS Resource Access Manager (RAM) to share 
+This Terraform module facilitates the deployment and management of DNS infrastructure on AWS. It handles the creation
+of Route 53 zones (both public and private), configures Route 53 Resolver endpoints (inbound and outbound) for
+hybrid cloud architectures, and manages custom resolver rules. The module is specifically designed for
+hub-and-spoke network topologies, offering seamless integration with AWS Resource Access Manager (RAM) to share
 DNS resolution capabilities across multiple AWS accounts within an organization.
 
 
@@ -56,6 +56,23 @@ Key features include:
 - **VPC Integration**: Automated VPC association and authorization for private DNS zones.
 - **Scale and Control**: Support for multiple VPC associations and fine-grained control over resolver ENI placement.
 
+### Hub and Spoke Roles
+
+A single `is_hub` flag selects which half of the module is active for a given deployment.
+
+| Concern                                   | Hub (`is_hub: true`)                          | Spoke (`is_hub: false`)                     |
+|-------------------------------------------|-----------------------------------------------|---------------------------------------------|
+| Route 53 zones (`zones`)                  | Created                                       | Created                                     |
+| Inbound / outbound resolver endpoints     | Created (needs `subnet_ids`, `vpc_cidr_block`)| Not created                                 |
+| Resolver rules from private zones         | Created                                       | Not created                                 |
+| `custom_resolver_rules`                   | Applied                                       | Ignored                                     |
+| RAM shares (`ram`)                        | Shares rules out to `ram.principals`          | Accepts shares listed in `shared`           |
+| `shared`                                  | Normally empty                                | Consumes the hub's `ram` / rule outputs     |
+
+The hub exports its `ram` and `resolver_rules` outputs; a spoke feeds those values back in through its
+`shared.ram_shares` and `shared.resolver_rules` inputs. Note that a spoke still needs `ram.enabled: true`
+for the incoming shares to be accepted.
+
 ## Usage
 
 
@@ -63,196 +80,328 @@ Key features include:
 Instead pin to the release tag (e.g. `?ref=vX.Y.Z`) of one of our [latest releases](https://github.com/cloudopsworks/terraform-module-aws-dns-setup/releases).
 
 
-To implement this module using Terragrunt, configure your `terragrunt.hcl` with the necessary inputs. The module expects a structured configuration that can be represented in YAML format for clarity.
+This module is consumed through Terragrunt, and the supported way to bootstrap a deployment is the
+built-in `scaffold` command. Scaffolding sources `.boilerplate/boilerplate.yml` from this repository and
+generates `terragrunt.hcl`, `inputs.yaml` and `local-tags.json` into the current directory.
 
-### Terragrunt Usage Example
+### 1. Scaffold the deployment
+
+```sh
+# Create and enter the target deployment directory
+mkdir -p <environment>/<region>/<spoke>/dns-setup
+cd <environment>/<region>/<spoke>/dns-setup
+
+# Scaffold the module (do NOT use --working-dir)
+terragrunt scaffold github.com/cloudopsworks/terraform-module-aws-dns-setup
+
+# Edit inputs.yaml with deployment-specific values
+vi inputs.yaml
+
+# Apply
+terragrunt apply
+```
+
+Scaffolding prompts for the following variables:
+
+| Prompt                   | Type   | Default    | Description                                                                 |
+|--------------------------|--------|------------|-----------------------------------------------------------------------------|
+| `is_hub`                 | bool   | `false`    | Whether this deployment acts as the DNS hub.                                |
+| `tags`                   | map    | `{}`       | Deployment-local tags, written to `local-tags.json`.                        |
+| `vpc_dependency_enabled` | bool   | `true`     | Wire `vpc_id`, `vpc_cidr_block` and `subnet_ids` from a sibling VPC module. |
+| `vpc_dependency_path`    | string | `../vpc`   | Relative path to that VPC deployment.                                       |
+| `vpc_subnet_type`        | enum   | `private`  | Which subnet output to use: `public`, `private`, `intra` or `database`.     |
+
+### 2. The generated `inputs.yaml`
+
+All keys and comments below are pre-populated from `.boilerplate/inputs.yaml`. Values supplied by the
+Terragrunt hierarchy are deliberately absent: `is_hub` is answered at scaffold time, `spoke_def` comes from
+`spoke-inputs.yaml`, `org` from `env-inputs.yaml`, and `extra_tags` from the merged tag files.
+
+```yaml
+## Route53 hosted zones to create, keyed by an arbitrary zone key.
+# Private zones are associated with vpc_id at creation time, so vpc_id must be set when
+# any zone below is marked private. delegation_set_id applies to public zones only.
+zones: {}
+#zones:
+#  example-zone:
+#    domain_name: "example.com"       # (Required) The domain name of the Route53 zone.
+#    comment: "Example zone"          # (Optional) A comment for the Route53 zone. Default: "Managed by Terraform"
+#    private: true                    # (Optional) Whether the zone is private or public. Default: false
+#    force_destroy: false             # (Optional) Destroy the zone even if it still contains records. Default: false
+#    delegation_set_id: "N1234567"    # (Optional) Delegation set to use for the zone, public zones only. Default: null
+#    tags:                            # (Optional) Extra tags for this zone, merged over the common tags. Default: {}
+#      Environment: "prod"
+
+# (Optional) VPC ID hosting the private zones and the resolver endpoints. Required when any
+# zone is private or when is_hub is true. Default: ""
+# Supplied by the VPC dependency when it was enabled at scaffold time.
+vpc_id: ""
+
+# (Optional) CIDR block of the VPC, used as the ingress rule of the resolver endpoint
+# security groups. Required when is_hub is true. Default: ""
+# Supplied by the VPC dependency when it was enabled at scaffold time.
+vpc_cidr_block: ""
+
+# (Optional) Subnets hosting the resolver endpoint ENIs. At least two subnets in distinct
+# availability zones are required when is_hub is true. Default: []
+# Supplied by the VPC dependency when it was enabled at scaffold time.
+subnet_ids: []
+
+# (Optional) Cap on how many subnets from subnet_ids are used for resolver ENIs.
+# Use -1 for all supplied subnets, or a value greater than or equal to 2. Default: -1
+max_resolver_enis: -1
+
+## Remote VPC authorized to associate with the private zones created here.
+# Setting vpc_id below emits a cross-account VPC association authorization for every private
+# zone. The authorized account must still complete the association on its own side.
+# Leave vpc_id empty to skip the authorization entirely.
+dns_vpc:
+  vpc_id: ""                          # (Optional) ID of the remote VPC to authorize. Default: ""
+  vpc_region: ""                      # (Optional) AWS region of that remote VPC. Default: ""
+
+## Existing private zone IDs to associate with vpc_id.
+# For zones created elsewhere or shared in by another account. Zones created by this module
+# through the zones key above are associated automatically and must not be listed here.
+association_zone_ids: []
+#association_zone_ids:
+#  - "Z1234567890"                    # (Optional) Zone ID to associate with vpc_id. Default: []
+
+## AWS Resource Access Manager sharing of the resolver rules.
+# On a hub, enabled: true shares the generated resolver rules out to principals.
+# On a spoke, enabled: true is what allows the shares listed under `shared` to be accepted.
+# Note on the default: omitting this whole block disables sharing, but supplying the block
+# without the enabled key ENABLES it. Always set enabled explicitly.
+ram:
+  enabled: false                      # (Optional) Enable RAM sharing. Default: false when the block is omitted, true when present without this key
+  allow_external_principals: false    # (Optional) Allow sharing with principals outside the AWS Organization. Default: false
+  principals: []                      # (Optional) AWS account IDs or Organizations/OU ARNs to share with. Default: []
+
+# (Optional) Reserved flag for automatic acceptance of RAM shares. Not consumed by any
+# resource in the current implementation; acceptance is driven by the shared block below
+# together with ram.enabled. Default: true
+enable_auto_accept: true
+
+## Spoke-side consumption of what a hub shared out.
+# Both keys are mandatory once this block is supplied - they have no individual defaults.
+# Acceptance of the shares additionally requires ram.enabled to be true.
+shared:
+  ram_shares: {}                      # (Required when `shared` is set) RAM shares to accept, keyed by share name. Default: {}
+  resolver_rules: {}                  # (Required when `shared` is set) Resolver rules to associate to vpc_id, keyed by rule name. Default: {}
+
+## Custom resolver rules, keyed by rule name.
+# Only evaluated when is_hub is true; ignored on a spoke. Use these to forward a domain to
+# on-premises or third-party DNS servers. Omit addresses to target this hub's own inbound
+# resolver endpoint IPs. Note that addresses is a list of objects each carrying an ip key,
+# not a plain list of strings.
+custom_resolver_rules: {}
+#custom_resolver_rules:
+#  onprem:
+#    domain_name: "onprem.internal"   # (Required) Domain name the resolver rule matches.
+#    rule_type: "FORWARD"             # (Optional) Rule type. Valid values: FORWARD, SYSTEM. Default: FORWARD
+#    addresses:                       # (Optional) Target IPs for the rule. Default: this hub's inbound resolver IPs
+#      - ip: "172.16.0.10"
+#      - ip: "172.16.1.10"
+#    associate_vpc: true              # (Optional) Associate the resulting rule with vpc_id. Default: false
+```
+
+### 3. The generated `terragrunt.hcl`
+
+This is what scaffold renders with `vpc_dependency_enabled = true`, `vpc_dependency_path = "../vpc"` and
+`vpc_subnet_type = "private"`. The `locals` block loads `inputs.yaml` as `local.local_vars`, and every
+module variable is wired from it in the `inputs` block. Do not hand-author this file — re-run scaffold.
 
 ```hcl
-terraform {
-  source = "git::https://github.com/cloudopsworks/terraform-module-aws-dns-setup.git?ref=v1.0.0"
+locals {
+  local_vars  = yamldecode(file("./inputs.yaml"))
+  spoke_vars  = yamldecode(file(find_in_parent_folders("spoke-inputs.yaml")))
+  region_vars = yamldecode(file(find_in_parent_folders("region-inputs.yaml")))
+  env_vars    = yamldecode(file(find_in_parent_folders("env-inputs.yaml")))
+  global_vars = yamldecode(file(find_in_parent_folders("global-inputs.yaml")))
+
+  local_tags  = jsondecode(file("./local-tags.json"))
+  spoke_tags  = jsondecode(file(find_in_parent_folders("spoke-tags.json")))
+  region_tags = jsondecode(file(find_in_parent_folders("region-tags.json")))
+  env_tags    = jsondecode(file(find_in_parent_folders("env-tags.json")))
+  global_tags = jsondecode(file(find_in_parent_folders("global-tags.json")))
+
+  tags = merge(
+    local.global_tags,
+    local.env_tags,
+    local.region_tags,
+    local.spoke_tags,
+    local.local_tags
+  )
 }
 
 include "root" {
-  path = find_in_parent_folders()
+  path = find_in_parent_folders("root.hcl")
+}
+
+dependency "vpc" {
+  config_path = "../vpc"
+  # Configure mock outputs for the `validate` command that are returned when there are no
+  # outputs available (e.g the module hasn't been applied yet).
+  mock_outputs_allowed_terraform_commands = ["validate", "destroy"]
+  mock_outputs = {
+    database_subnets = [
+      "subnet-abcdef123456789",
+      "subnet-abcdef123456789",
+      "subnet-abcdef123456789",
+    ]
+    private_subnets = [
+      "subnet-01234567890123456",
+      "subnet-01234567890123456",
+      "subnet-01234567890123456",
+    ]
+    intra_subnets = [
+      "subnet-01234567890123456",
+      "subnet-01234567890123456",
+      "subnet-01234567890123456",
+    ]
+    public_subnets = [
+      "subnet-01234567890123456",
+      "subnet-01234567890123456",
+    ]
+    vpc_id         = "vpc-12345678901234"
+    vpc_cidr_block = "10.0.0.0/8"
+  }
+}
+
+terraform {
+  source = "github.com/cloudopsworks/terraform-module-aws-dns-setup"
 }
 
 inputs = {
-  # All variables are passed here
-  org = {
-    organization_name = "example"
-    organization_unit = "platform"
-    environment_type  = "prod"
-    environment_name  = "production"
-  }
-  # ... other inputs ...
+  is_hub     = false
+  org        = local.env_vars.org
+  spoke_def  = local.spoke_vars.spoke
+
+  zones                 = try(local.local_vars.zones, {})
+  vpc_id                = dependency.vpc.outputs.vpc_id
+  vpc_cidr_block        = dependency.vpc.outputs.vpc_cidr_block
+  subnet_ids            = dependency.vpc.outputs.private_subnets
+  dns_vpc               = try(local.local_vars.dns_vpc, {})
+  ram                   = try(local.local_vars.ram, {})
+  enable_auto_accept    = try(local.local_vars.enable_auto_accept, true)
+  shared                = try(local.local_vars.shared, {})
+  association_zone_ids  = try(local.local_vars.association_zone_ids, [])
+  custom_resolver_rules = try(local.local_vars.custom_resolver_rules, {})
+  max_resolver_enis     = try(local.local_vars.max_resolver_enis, -1)
+
+  extra_tags = local.tags
 }
 ```
 
-### Full Configuration Schema (YAML Format)
-
-The following YAML structure represents the complete configuration options available for the module variables:
-
-```yaml
-# --- Variables from variables.tf ---
-
-# is_hub: false                        # (Optional) Whether this instance acts as a DNS Hub. (Default: false)
-# spoke_def: "001"                     # (Optional) 3-digit spoke identifier. (Default: "001")
-# extra_tags:                          # (Optional) Extra tags to add to the resources. (Default: {})
-#   Tag1: "Value1"
-
-# org:                                 # (Required) Organization details
-#   organization_name: "example"       # (Required) The name of the organization.
-#   organization_unit: "platform"      # (Required) The organizational unit.
-#   environment_type: "prod"           # (Required) Type of environment (e.g., prod, non-prod).
-#   environment_name: "production"     # (Required) Specific environment name.
-
-# --- Variables from variables-dns.tf ---
-
-# zones:                               # (Optional) Map of Route53 zones to create.
-#   example-zone:
-#     domain_name: "example.com"      # (Required) The domain name of the Route53 zone.
-#     comment: "Example zone"         # (Optional) A comment for the Route53 zone. (Default: "Managed by Terraform")
-#     private: true                   # (Optional) Whether the zone is private or public. (Default: false)
-#     force_destroy: false            # (Optional) Whether to force destroy the zone even if it contains records. (Default: false)
-#     delegation_set_id: "N1234567"   # (Optional) The ID of the delegation set to use for the zone. (Default: null)
-#     tags:                           # (Optional) A map of tags to assign to the zone. (Default: {})
-#       Environment: "prod"
-
-# vpc_id: "vpc-12345678"               # (Optional) VPC ID to associate with the Route53 zones. Required for private zones.
-# vpc_cidr_block: "10.0.0.0/16"        # (Optional) CIDR block for the VPC. Required for private zones.
-# subnet_ids: ["subnet-1", "subnet-2"] # (Optional) List of subnet IDs where the DNS resolver will be deployed.
-
-# dns_vpc:                             # (Optional) VPC configuration for DNS resolver.
-#   vpc_id: "vpc-12345678"             # (Optional) VPC ID for the DNS resolver. (Default: "")
-#   vpc_region: "us-east-1"            # (Optional) AWS region for the DNS resolver. (Default: "us-east-1")
-
-# ram:                                 # (Optional) Resource Access Manager (RAM) configuration.
-#   enabled: true                      # (Optional) Enable Resource Access Manager (RAM) sharing. (Default: false)
-#   allow_external_principals: false   # (Optional) Allow sharing with external principals. (Default: false)
-#   principals: ["123456789012"]       # (Optional) List of AWS account IDs or OU ARNs to share with. (Default: [])
-
-# enable_auto_accept: true             # (Optional) Enable automatic acceptance of RAM shares. (Default: true)
-
-# shared:                              # (Optional) Shared configuration for the DNS resolver.
-#   ram_shares: {}                     # (Optional) RAM shares configuration. (Default: {})
-#   resolver_rules: {}                 # (Optional) Resolver rules configuration. (Default: {})
-
-# association_zone_ids:                # (Optional) List of Route53 zone IDs to associate with the DNS resolver.
-#   - "Z1234567890"
-
-# custom_resolver_rules:               # (Optional) Map of custom resolver rules to create.
-#   rule1:
-#     domain_name: "onprem.internal"   # (Required) Domain name for the resolver rule.
-#     rule_type: "FORWARD"             # (Optional) Type of resolver rule. (FORWARD, SYSTEM). (Default: FORWARD)
-#     addresses: ["10.0.0.1"]          # (Optional) Target IP addresses for the rule. (Default: inbound resolver IPs)
-#     associate_vpc: true              # (Optional) Whether to associate the rule with the VPC. (Default: false)
-
-# max_resolver_enis: -1                # (Optional) Maximum number of resolver ENIs to create. (Default: -1)
-```
-
-### Variable Specifications Table
-
-| Variable | Type | Required | Description |
-|----------|------|----------|-------------|
-| `org` | `object` | **Yes** | Organization details including name, unit, and environment info. |
-| `is_hub` | `bool` | No | Set to `true` to enable Hub features (resolver endpoints). Default: `false`. |
-| `zones` | `map(any)` | No | Configuration for Route 53 zones. |
-| `vpc_id` | `string` | No* | VPC ID for private zones and resolver endpoints. |
-| `vpc_cidr_block` | `string` | No* | CIDR block for the VPC. Required for private zones. |
-| `subnet_ids` | `list(string)` | No* | Subnet IDs for resolver endpoints (Required if `is_hub` is true). |
-| `dns_vpc` | `object` | No | VPC configuration for DNS resolver. |
-| `ram` | `object` | No | Configuration for AWS RAM sharing. |
-| `custom_resolver_rules` | `map(any)` | No | Custom DNS forwarding rules. |
-| `shared` | `object` | No | Shared resources for spoke accounts. |
-| `extra_tags` | `map(string)` | No | Additional tags for all resources. |
+When `vpc_dependency_enabled` is answered `false`, the `dependency "vpc"` block is omitted and
+`vpc_id`, `vpc_cidr_block` and `subnet_ids` fall through to `local.local_vars` like every other
+optional variable — fill them in directly in `inputs.yaml`.
 
 ## Quick Start
 
-Follow these steps to quickly deploy the DNS infrastructure:
-1. **Initialize Terragrunt**: Ensure you have `terragrunt.hcl` set up.
-2. **Define Inputs**: Fill in the `org`, `vpc_id`, and `zones` (for Hub) or `shared` (for Spoke).
-3. **Plan and Deploy**:
-   ```bash
-   terragrunt plan
+1. **Deploy the hub first.** Scaffold a deployment with `is_hub = true`, declare your private `zones`,
+   and set `ram.enabled: true` with the `principals` that should receive the rules. The hub needs at
+   least two subnets for its resolver endpoint ENIs.
+
+   ```sh
+   mkdir -p prod/us-east-1/shared/dns-setup
+   cd prod/us-east-1/shared/dns-setup
+   terragrunt scaffold github.com/cloudopsworks/terraform-module-aws-dns-setup
+   vi inputs.yaml
    terragrunt apply
    ```
-4. **Verify**: Check Route 53 Resolver Rules and Zones in the AWS Console.
+
+2. **Collect the hub outputs.** `terragrunt output ram` and `terragrunt output resolver_rules` give you
+   the share ARNs and rule IDs the spokes need.
+
+3. **Deploy each spoke.** Scaffold with `is_hub = false`, set `ram.enabled: true`, and paste the hub
+   values into `shared.ram_shares` and `shared.resolver_rules`.
+
+4. **Verify.** In the AWS Console check Route 53 → Hosted zones for the zones, Route 53 → Resolver for
+   the endpoints and rule associations, and RAM → Shared resource shares in the spoke accounts. From an
+   instance inside a spoke VPC, `dig <record>.cloudops.internal` should resolve through the hub.
 
 
 ## Examples
 
-### Hub Configuration
-Deployment of a DNS Hub with Inbound/Outbound endpoints and RAM sharing to the organization.
+### Hub Deployment
 
-```hcl
-terraform {
-  source = "git::https://github.com/cloudopsworks/terraform-module-aws-dns-setup.git?ref=v1.0.0"
-}
+A DNS hub owning the private zones, running the inbound and outbound resolver endpoints, and sharing
+its resolver rules to an Organizational Unit. Scaffold it with `is_hub = true`.
 
-inputs = {
-  org = {
-    organization_name = "cloudops"
-    organization_unit = "shared"
-    environment_type  = "prod"
-    environment_name  = "hub"
-  }
-
-  is_hub         = true
-  vpc_id         = "vpc-0123456789abcdef0"
-  vpc_cidr_block = "10.0.0.0/16"
-  subnet_ids     = ["subnet-12345", "subnet-67890"]
-
-  zones = {
-    "cloudops.internal" = {
-      domain_name = "cloudops.internal"
-      private     = true
-      comment     = "Main internal zone"
-    }
-  }
-
-  ram = {
-    enabled    = true
-    principals = ["arn:aws:organizations::123456789012:ou/o-example/ou-1234"]
-  }
-
-  custom_resolver_rules = {
-    "on-prem" = {
-      domain_name = "internal.corp"
-      rule_type   = "FORWARD"
-      addresses   = ["172.16.0.10", "172.16.1.10"]
-    }
-  }
-}
+```sh
+mkdir -p prod/us-east-1/shared/dns-setup
+cd prod/us-east-1/shared/dns-setup
+terragrunt scaffold github.com/cloudopsworks/terraform-module-aws-dns-setup
 ```
 
-### Spoke Configuration
-Deployment in a spoke account, associating with resolver rules shared from the Hub.
+`inputs.yaml`:
 
-```hcl
-terraform {
-  source = "git::https://github.com/cloudopsworks/terraform-module-aws-dns-setup.git?ref=v1.0.0"
-}
+```yaml
+zones:
+  cloudops-internal:
+    domain_name: "cloudops.internal"   # (Required) Private zone served by this hub.
+    private: true                      # (Optional) Private zone, associated with vpc_id.
+    comment: "Main internal zone"      # (Optional) Free-form comment.
 
-inputs = {
-  org = {
-    organization_name = "cloudops"
-    organization_unit = "engineering"
-    environment_type  = "dev"
-    environment_name  = "project-a"
-  }
+# vpc_id, vpc_cidr_block and subnet_ids come from the VPC dependency.
+# Set them here only if the deployment was scaffolded without it.
+max_resolver_enis: 2                   # (Optional) Cap resolver ENIs to two subnets.
 
-  is_hub = false
-  vpc_id = "vpc-fedcba9876543210"
+ram:
+  enabled: true                        # (Optional) Share the generated resolver rules out.
+  allow_external_principals: false     # (Optional) Keep sharing inside the Organization.
+  principals:
+    - "arn:aws:organizations::123456789012:ou/o-example/ou-1234"
 
-  shared = {
-    resolver_rules = {
-      "hub-rule" = {
-        id          = "rslvr-rr-1234567890"
-        domain_name = "cloudops.internal"
-      }
-    }
-  }
-}
+custom_resolver_rules:
+  on-prem:
+    domain_name: "internal.corp"       # (Required) Forward this domain on-premises.
+    rule_type: "FORWARD"               # (Optional) FORWARD or SYSTEM. Default: FORWARD
+    addresses:                         # (Optional) Each entry is an object with an ip key.
+      - ip: "172.16.0.10"
+      - ip: "172.16.1.10"
+    associate_vpc: true                # (Optional) Also associate the rule with the hub VPC.
+```
+
+### Spoke Deployment
+
+A spoke account that accepts the shares published by the hub and associates the shared resolver rules
+with its own VPC. Scaffold it with `is_hub = false`. Note that `ram.enabled` must be `true` here for
+the incoming shares to be accepted.
+
+```yaml
+zones:
+  project-a-internal:
+    domain_name: "project-a.internal"  # (Required) Zone local to this spoke.
+    private: true                      # (Optional) Private zone, associated with vpc_id.
+
+ram:
+  enabled: true                        # (Optional) Required so the shares below are accepted.
+
+shared:
+  ram_shares:
+    hub-share:
+      arn: "arn:aws:ram:us-east-1:123456789012:resource-share/abcd-1234"  # (Required) From the hub `ram` output.
+  resolver_rules:
+    hub-rule:
+      id: "rslvr-rr-1234567890"        # (Required) From the hub `resolver_rules` output.
+      domain_name: "cloudops.internal" # (Required) Used to build the association name.
+```
+
+### Cross-Account Private Zone Association
+
+To let a VPC in another account attach to a private zone created here, set `dns_vpc`. This module emits
+the association authorization; the owner of the remote VPC must complete the association on their side.
+
+```yaml
+zones:
+  shared-internal:
+    domain_name: "shared.internal"
+    private: true
+
+dns_vpc:
+  vpc_id: "vpc-0fedcba9876543210"      # (Optional) Remote VPC authorized to associate.
+  vpc_region: "us-east-1"              # (Optional) Region of that remote VPC.
 ```
 
 
@@ -274,13 +423,13 @@ Available targets:
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.4 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.35 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 6.4 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 6.35 |
 
 ## Modules
 
@@ -288,7 +437,7 @@ Available targets:
 |------|--------|---------|
 | <a name="module_resolver_endpoint_in"></a> [resolver\_endpoint\_in](#module\_resolver\_endpoint\_in) | terraform-aws-modules/route53/aws//modules/resolver-endpoint | ~> 6.3 |
 | <a name="module_resolver_endpoint_out"></a> [resolver\_endpoint\_out](#module\_resolver\_endpoint\_out) | terraform-aws-modules/route53/aws//modules/resolver-endpoint | ~> 6.3 |
-| <a name="module_tags"></a> [tags](#module\_tags) | cloudopsworks/tags/local | 1.0.9 |
+| <a name="module_tags"></a> [tags](#module\_tags) | cloudopsworks/tags/local | 1.0.10 |
 
 ## Resources
 
@@ -314,34 +463,34 @@ Available targets:
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| <a name="input_association_zone_ids"></a> [association\_zone\_ids](#input\_association\_zone\_ids) | List of Route53 zone IDs to associate with the DNS resolver. This is used to link the resolver with specific zones for DNS resolution. | `set(string)` | `[]` | no |
-| <a name="input_custom_resolver_rules"></a> [custom\_resolver\_rules](#input\_custom\_resolver\_rules) | Map of custom resolver rules to create. Each key is the rule name, and the value is an object with the following attributes: domain\_name, rule\_type (FORWARD or SYSTEM), addresses (optional list of IP addresses), associate\_vpc (boolean). | `any` | `{}` | no |
-| <a name="input_dns_vpc"></a> [dns\_vpc](#input\_dns\_vpc) | VPC configuration for DNS resolver. This is used to specify the VPC ID and region where the DNS resolver will be created. | <pre>object({<br/>    vpc_id     = optional(string, "")<br/>    vpc_region = optional(string, "us-east-1")<br/>  })</pre> | <pre>{<br/>  "vpc_id": "",<br/>  "vpc_region": ""<br/>}</pre> | no |
-| <a name="input_enable_auto_accept"></a> [enable\_auto\_accept](#input\_enable\_auto\_accept) | Enable automatic acceptance of RAM shares for the DNS resolver. This is useful when sharing the resolver with other accounts. | `bool` | `true` | no |
+| <a name="input_association_zone_ids"></a> [association\_zone\_ids](#input\_association\_zone\_ids) | (Optional) Set of existing Route53 private zone IDs to associate with vpc\_id. Zones created by this module are associated automatically and should not be listed. (Default: []) | `set(string)` | `[]` | no |
+| <a name="input_custom_resolver_rules"></a> [custom\_resolver\_rules](#input\_custom\_resolver\_rules) | (Optional) Map of custom Route53 Resolver rules to create, keyed by rule name. Each value accepts domain\_name, rule\_type, addresses and associate\_vpc. Only applied when is\_hub is true. (Default: {}) | `any` | `{}` | no |
+| <a name="input_dns_vpc"></a> [dns\_vpc](#input\_dns\_vpc) | (Optional) Remote VPC authorized to associate with the private zones created here. When vpc\_id is empty no association authorization is emitted. (Default: {vpc\_id = "", vpc\_region = ""}) | <pre>object({<br/>    vpc_id     = optional(string, "")<br/>    vpc_region = optional(string, "us-east-1")<br/>  })</pre> | <pre>{<br/>  "vpc_id": "",<br/>  "vpc_region": ""<br/>}</pre> | no |
+| <a name="input_enable_auto_accept"></a> [enable\_auto\_accept](#input\_enable\_auto\_accept) | (Optional) Reserved flag for automatic acceptance of RAM shares. Currently declared for interface stability and not consumed by any resource; acceptance is driven by shared.ram\_shares together with ram.enabled. (Default: true) | `bool` | `true` | no |
 | <a name="input_extra_tags"></a> [extra\_tags](#input\_extra\_tags) | Extra tags to add to the resources | `map(string)` | `{}` | no |
 | <a name="input_is_hub"></a> [is\_hub](#input\_is\_hub) | Is this a hub or spoke configuration? | `bool` | `false` | no |
-| <a name="input_max_resolver_enis"></a> [max\_resolver\_enis](#input\_max\_resolver\_enis) | Maximum number of resolver ENIs to create. Set to -1 for all available ENIs, or a specific number greater than or equal to 2. | `number` | `-1` | no |
+| <a name="input_max_resolver_enis"></a> [max\_resolver\_enis](#input\_max\_resolver\_enis) | (Optional) Maximum number of resolver ENIs to create, taken from the head of subnet\_ids. Use -1 for all supplied subnets, or a value greater than or equal to 2. (Default: -1) | `number` | `-1` | no |
 | <a name="input_org"></a> [org](#input\_org) | Organization details | <pre>object({<br/>    organization_name = string<br/>    organization_unit = string<br/>    environment_type  = string<br/>    environment_name  = string<br/>  })</pre> | n/a | yes |
-| <a name="input_ram"></a> [ram](#input\_ram) | Resource Access Manager (RAM) configuration for sharing the DNS resolver across accounts. This includes whether to enable sharing, allow external principals, and a list of principals to share with. | <pre>object({<br/>    enabled                   = optional(bool, true)<br/>    allow_external_principals = optional(bool, false)<br/>    principals                = optional(list(string), [])<br/>  })</pre> | <pre>{<br/>  "allow_external_principals": false,<br/>  "enabled": false,<br/>  "principals": []<br/>}</pre> | no |
-| <a name="input_shared"></a> [shared](#input\_shared) | Shared configuration for the DNS resolver, including RAM shares and resolver rules. This is used to define how the resolver will be shared across accounts and any custom resolver rules. | <pre>object({<br/>    ram_shares     = any<br/>    resolver_rules = any<br/>  })</pre> | <pre>{<br/>  "ram_shares": {},<br/>  "resolver_rules": {}<br/>}</pre> | no |
+| <a name="input_ram"></a> [ram](#input\_ram) | (Optional) Resource Access Manager sharing configuration for the resolver rules. Controls whether sharing is enabled, whether external principals are allowed and which principals receive the shares. (Default: sharing disabled) | <pre>object({<br/>    enabled                   = optional(bool, true)<br/>    allow_external_principals = optional(bool, false)<br/>    principals                = optional(list(string), [])<br/>  })</pre> | <pre>{<br/>  "allow_external_principals": false,<br/>  "enabled": false,<br/>  "principals": []<br/>}</pre> | no |
+| <a name="input_shared"></a> [shared](#input\_shared) | (Optional) Spoke-side configuration consuming what a hub shared out: RAM resource shares to accept and resolver rules to associate with this VPC. Both keys are mandatory once the object is supplied. (Default: both empty) | <pre>object({<br/>    ram_shares     = any<br/>    resolver_rules = any<br/>  })</pre> | <pre>{<br/>  "ram_shares": {},<br/>  "resolver_rules": {}<br/>}</pre> | no |
 | <a name="input_spoke_def"></a> [spoke\_def](#input\_spoke\_def) | Spoke ID Number, must be a 3 digit number | `string` | `"001"` | no |
-| <a name="input_subnet_ids"></a> [subnet\_ids](#input\_subnet\_ids) | List of subnet IDs where the DNS resolver will be deployed. This is required for creating the resolver endpoints. | `list(string)` | `[]` | no |
-| <a name="input_vpc_cidr_block"></a> [vpc\_cidr\_block](#input\_vpc\_cidr\_block) | CIDR block for the VPC. This is required for private zones. | `string` | `""` | no |
-| <a name="input_vpc_id"></a> [vpc\_id](#input\_vpc\_id) | VPC ID to associate with the Route53 zones. This is required for private zones. | `string` | `""` | no |
-| <a name="input_zones"></a> [zones](#input\_zones) | Map of Route53 zones to create. Each key is the zone name, and the value is an object with the following attributes: domain\_name, comment, private (boolean), force\_destroy (boolean), delegation\_set\_id (optional), tags (optional). | `any` | `{}` | no |
+| <a name="input_subnet_ids"></a> [subnet\_ids](#input\_subnet\_ids) | (Optional) List of subnet IDs where the resolver endpoint ENIs are placed. At least two subnets in distinct AZs are required when is\_hub is true. (Default: []) | `list(string)` | `[]` | no |
+| <a name="input_vpc_cidr_block"></a> [vpc\_cidr\_block](#input\_vpc\_cidr\_block) | (Optional) CIDR block of the VPC, used as the ingress rule of the resolver endpoint security groups. Required when is\_hub is true. (Default: "") | `string` | `""` | no |
+| <a name="input_vpc_id"></a> [vpc\_id](#input\_vpc\_id) | (Optional) VPC ID to associate with the Route53 private zones and to host the resolver endpoints. Required when any zone is private or when is\_hub is true. (Default: "") | `string` | `""` | no |
+| <a name="input_zones"></a> [zones](#input\_zones) | (Optional) Map of Route53 zones to create, keyed by an arbitrary zone key. Each value accepts domain\_name, comment, private, force\_destroy, delegation\_set\_id and tags. (Default: {}) | `any` | `{}` | no |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| <a name="output_custom_resolver_rules"></a> [custom\_resolver\_rules](#output\_custom\_resolver\_rules) | n/a |
-| <a name="output_dns_vpc"></a> [dns\_vpc](#output\_dns\_vpc) | n/a |
-| <a name="output_ram"></a> [ram](#output\_ram) | n/a |
-| <a name="output_resolver_endpoints"></a> [resolver\_endpoints](#output\_resolver\_endpoints) | n/a |
-| <a name="output_resolver_rules"></a> [resolver\_rules](#output\_resolver\_rules) | n/a |
-| <a name="output_resolver_rules_associations"></a> [resolver\_rules\_associations](#output\_resolver\_rules\_associations) | n/a |
-| <a name="output_vpc_association_auth"></a> [vpc\_association\_auth](#output\_vpc\_association\_auth) | n/a |
-| <a name="output_zones"></a> [zones](#output\_zones) | n/a |
+| <a name="output_custom_resolver_rules"></a> [custom\_resolver\_rules](#output\_custom\_resolver\_rules) | Route53 Resolver rules built from `custom_resolver_rules`, keyed by rule name under the `inbound` key. Empty when `is_hub` is false. |
+| <a name="output_dns_vpc"></a> [dns\_vpc](#output\_dns\_vpc) | Networking context the DNS resources were deployed into: VPC id, the region resolved from the provider, VPC CIDR block and the subnets used for the resolver ENIs. |
+| <a name="output_ram"></a> [ram](#output\_ram) | AWS RAM sharing state for the resolver rules exported by this hub: resource shares, resource associations and principal associations for both zone-derived and custom rules. Consumed by spoke deployments through their `shared` variable. |
+| <a name="output_resolver_endpoints"></a> [resolver\_endpoints](#output\_resolver\_endpoints) | Inbound and outbound Route53 Resolver endpoints created on the hub, including their ids, ARNs, host VPC, security groups and IP addresses. Both keys are null when `is_hub` is false. |
+| <a name="output_resolver_rules"></a> [resolver\_rules](#output\_resolver\_rules) | Route53 Resolver FORWARD rules generated for the private zones hosted by this hub, keyed by rule name under the `inbound` key. Empty when `is_hub` is false. |
+| <a name="output_resolver_rules_associations"></a> [resolver\_rules\_associations](#output\_resolver\_rules\_associations) | Associations between the resolver rules shared from the hub (`shared.resolver_rules`) and this account's VPC, keyed by association name. Populated on spoke deployments. |
+| <a name="output_vpc_association_auth"></a> [vpc\_association\_auth](#output\_vpc\_association\_auth) | Cross-account VPC association authorizations issued for each private zone, keyed by zone key. Only populated when `dns_vpc.vpc_id` is set; the authorized account must complete the association on its side. |
+| <a name="output_zones"></a> [zones](#output\_zones) | Map of every Route53 hosted zone created by this module (public and private), keyed by domain name. Each entry exposes the zone id, ARN, name and delegated name servers. |
 
 
 
