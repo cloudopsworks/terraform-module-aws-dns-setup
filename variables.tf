@@ -1,5 +1,5 @@
 ##
-# (c) 2021-2025
+# (c) 2021-2026
 #     Cloud Ops Works LLC - https://cloudops.works/
 #     Find us on:
 #       GitHub: https://github.com/cloudopsworks
@@ -7,16 +7,14 @@
 #     Distributed Under Apache v2.0 License
 #
 
-## Hub or Spoke Configuration - YAML:
-# is_hub: false                        # (Optional) Whether this instance acts as a DNS Hub. (Default: false)
+# is_hub: false # (Optional) Is this a hub or spoke configuration? Default: false
 variable "is_hub" {
   description = "Is this a hub or spoke configuration?"
   type        = bool
   default     = false
 }
 
-## Spoke Identifier - YAML:
-# spoke_def: "001"                     # (Optional) 3-digit spoke identifier. (Default: "001")
+# spoke_def: "001" # (Optional) Spoke ID Number, must be a 3 digit number. Default: "001"
 variable "spoke_def" {
   description = "Spoke ID Number, must be a 3 digit number"
   type        = string
@@ -27,19 +25,11 @@ variable "spoke_def" {
   }
 }
 
-## Organization Details - YAML:
-# | Field             | Type   | Required | Default | Description                                         |
-# |-------------------|--------|----------|---------|-----------------------------------------------------|
-# | organization_name | string | Yes      | -       | The name of the organization.                       |
-# | organization_unit | string | Yes      | -       | The organizational unit.                            |
-# | environment_type  | string | Yes      | -       | Type of environment (e.g. prod, non-prod).          |
-# | environment_name  | string | Yes      | -       | Specific environment name (e.g. production, dev).   |
-#
-# org:
-#   organization_name: "example"       # (Required) The name of the organization.
-#   organization_unit: "platform"      # (Required) The organizational unit.
-#   environment_type: "prod"           # (Required) Type of environment (e.g., prod, non-prod).
-#   environment_name: "production"     # (Required) Specific environment name.
+# org: # (Required) Organization details
+#   organization_name: "example" # (Required) The name of the organization
+#   organization_unit: "devops"  # (Required) The unit within the organization
+#   environment_type: "production" # (Required) The type of environment (e.g. production, staging)
+#   environment_name: "prod"      # (Required) The name of the environment
 variable "org" {
   description = "Organization details"
   type = object({
@@ -50,8 +40,7 @@ variable "org" {
   })
 }
 
-## Extra Tags - YAML:
-# extra_tags:                          # (Optional) Extra tags to add to the resources. (Default: {})
+# extra_tags: # (Optional) Extra tags to add to the resources. Default: {}
 #   Tag1: "Value1"
 variable "extra_tags" {
   description = "Extra tags to add to the resources"
