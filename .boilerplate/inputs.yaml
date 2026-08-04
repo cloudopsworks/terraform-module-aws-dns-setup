@@ -1,18 +1,108 @@
-# Module configuration
-# Required variables
-{{- range .requiredVariables }}
-{{- if ne .Name "org"}}
-# Description {{ .Description }} , Type: {{ .Type }}
-{{ .Name }}: {{ .DefaultValuePlaceholder }}
-{{- end }}
+# Module configuration - AWS DNS Setup
+#
+# This file is loaded by terragrunt.hcl as local.local_vars. Values supplied by the
+# Terragrunt hierarchy are NOT set here:
+#   is_hub     - answered during scaffolding
+#   spoke_def  - sourced from spoke-inputs.yaml
+#   org        - sourced from env-inputs.yaml
+#   extra_tags - built from the merged tag files
+#
+# When the VPC dependency was enabled during scaffolding, vpc_id, vpc_cidr_block and
+# subnet_ids are wired directly from the VPC module outputs and the values below are
+# ignored. Fill them in only for a deployment scaffolded without the VPC dependency.
 
-{{- end }}
-# Optional variables
-{{- range .optionalVariables }}
-{{- if ne .Name "is_hub" "spoke_def" "extra_args" }}
-# Description {{ .Description }} , Type: {{ .Type }}
-#{{ .Name }}: {{ .DefaultValue }}
-{{- end }}
+## Route53 hosted zones to create, keyed by an arbitrary zone key.
+# Private zones are associated with vpc_id at creation time, so vpc_id must be set when
+# any zone below is marked private. delegation_set_id applies to public zones only.
+zones: {}
+#zones:
+#  example-zone:
+#    domain_name: "example.com"       # (Required) The domain name of the Route53 zone.
+#    comment: "Example zone"          # (Optional) A comment for the Route53 zone. Default: "Managed by Terraform"
+#    private: true                    # (Optional) Whether the zone is private or public. Default: false
+#    force_destroy: false             # (Optional) Destroy the zone even if it still contains records. Default: false
+#    delegation_set_id: "N1234567"    # (Optional) Delegation set to use for the zone, public zones only. Default: null
+#    tags:                            # (Optional) Extra tags for this zone, merged over the common tags. Default: {}
+#      Environment: "prod"
 
-{{- end }}
+# (Optional) VPC ID hosting the private zones and the resolver endpoints. Required when any
+# zone is private or when is_hub is true. Default: ""
+# Supplied by the VPC dependency when it was enabled at scaffold time.
+vpc_id: ""
 
+# (Optional) CIDR block of the VPC, used as the ingress rule of the resolver endpoint
+# security groups. Required when is_hub is true. Default: ""
+# Supplied by the VPC dependency when it was enabled at scaffold time.
+vpc_cidr_block: ""
+
+# (Optional) Subnets hosting the resolver endpoint ENIs. At least two subnets in distinct
+# availability zones are required when is_hub is true. Default: []
+# Supplied by the VPC dependency when it was enabled at scaffold time.
+subnet_ids: []
+
+# (Optional) Cap on how many subnets from subnet_ids are used for resolver ENIs.
+# Use -1 for all supplied subnets, or a value greater than or equal to 2. Default: -1
+max_resolver_enis: -1
+
+## Remote VPC authorized to associate with the private zones created here.
+# Setting vpc_id below emits a cross-account VPC association authorization for every private
+# zone. The authorized account must still complete the association on its own side.
+# Leave vpc_id empty to skip the authorization entirely.
+dns_vpc:
+  vpc_id: ""                          # (Optional) ID of the remote VPC to authorize. Default: ""
+  vpc_region: ""                      # (Optional) AWS region of that remote VPC. Default: ""
+
+## Existing private zone IDs to associate with vpc_id.
+# For zones created elsewhere or shared in by another account. Zones created by this module
+# through the zones key above are associated automatically and must not be listed here.
+association_zone_ids: []
+#association_zone_ids:
+#  - "Z1234567890"                    # (Optional) Zone ID to associate with vpc_id. Default: []
+
+## AWS Resource Access Manager sharing of the resolver rules.
+# On a hub, enabled: true shares the generated resolver rules out to principals.
+# On a spoke, enabled: true is what allows the shares listed under `shared` to be accepted.
+# Note on the default: omitting this whole block disables sharing, but supplying the block
+# without the enabled key ENABLES it. Always set enabled explicitly.
+ram:
+  enabled: false                      # (Optional) Enable RAM sharing. Default: false when the block is omitted, true when present without this key
+  allow_external_principals: false    # (Optional) Allow sharing with principals outside the AWS Organization. Default: false
+  principals: []                      # (Optional) AWS account IDs or Organizations/OU ARNs to share with. Default: []
+#  principals:
+#    - "123456789012"
+#    - "arn:aws:organizations::123456789012:ou/o-example/ou-1234"
+
+# (Optional) Reserved flag for automatic acceptance of RAM shares. Not consumed by any
+# resource in the current implementation; acceptance is driven by the shared block below
+# together with ram.enabled. Default: true
+enable_auto_accept: true
+
+## Spoke-side consumption of what a hub shared out.
+# Both keys are mandatory once this block is supplied - they have no individual defaults.
+# Acceptance of the shares additionally requires ram.enabled to be true.
+shared:
+  ram_shares: {}                      # (Required when `shared` is set) RAM shares to accept, keyed by share name. Default: {}
+  resolver_rules: {}                  # (Required when `shared` is set) Resolver rules to associate to vpc_id, keyed by rule name. Default: {}
+#shared:
+#  ram_shares:
+#    hub-share:
+#      arn: "arn:aws:ram:us-east-1:123456789012:resource-share/abcd-1234"  # (Required) ARN of the share to accept.
+#  resolver_rules:
+#    hub-rule:
+#      id: "rslvr-rr-1234567890"      # (Required) ID of the shared resolver rule.
+#      domain_name: "example.internal" # (Required) Domain of the rule; rule_name is accepted as a fallback.
+
+## Custom resolver rules, keyed by rule name.
+# Only evaluated when is_hub is true; ignored on a spoke. Use these to forward a domain to
+# on-premises or third-party DNS servers. Omit addresses to target this hub's own inbound
+# resolver endpoint IPs. Note that addresses is a list of objects each carrying an ip key,
+# not a plain list of strings.
+custom_resolver_rules: {}
+#custom_resolver_rules:
+#  onprem:
+#    domain_name: "onprem.internal"   # (Required) Domain name the resolver rule matches.
+#    rule_type: "FORWARD"             # (Optional) Rule type. Valid values: FORWARD, SYSTEM. Default: FORWARD
+#    addresses:                       # (Optional) Target IPs for the rule. Default: this hub's inbound resolver IPs
+#      - ip: "172.16.0.10"
+#      - ip: "172.16.1.10"
+#    associate_vpc: true              # (Optional) Associate the resulting rule with vpc_id. Default: false
