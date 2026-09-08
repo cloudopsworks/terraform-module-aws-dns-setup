@@ -69,7 +69,7 @@ output "resolver_rules_associations" {
 output "resolver_endpoints" {
   description = "Inbound and outbound Route53 Resolver endpoints created on the hub, including their ids, ARNs, host VPC, security groups and IP addresses. Both keys are null when `is_hub` is false."
   value = {
-    inbound = var.is_hub ? {
+    inbound = local.create_resolver ? {
       (module.resolver_endpoint_in.id) = {
         id                  = module.resolver_endpoint_in.id
         arn                 = module.resolver_endpoint_in.arn
@@ -78,7 +78,7 @@ output "resolver_endpoints" {
         ip_addresses        = module.resolver_endpoint_in.ip_addresses
       }
     } : null
-    outbound = var.is_hub ? {
+    outbound = local.create_resolver ? {
       (module.resolver_endpoint_out.id) = {
         id                  = module.resolver_endpoint_out.id
         arn                 = module.resolver_endpoint_out.arn
