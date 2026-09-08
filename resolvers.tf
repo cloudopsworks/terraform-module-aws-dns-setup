@@ -40,6 +40,7 @@ locals {
       subnet_id = subnet
     }
   ]
+  create_resolver = var.is_hub && var.vpc_id != ""
 }
 
 # Resolve the inbound domain with inbound resolver through te outbound resolver
@@ -97,7 +98,7 @@ module "resolver_endpoint_in" {
   depends_on                     = [aws_route53_zone.this]
   source                         = "terraform-aws-modules/route53/aws//modules/resolver-endpoint"
   version                        = "~> 6.3"
-  create                         = var.is_hub
+  create                         = local.create_resolver
   name                           = "rslvr-in-${local.system_name}"
   direction                      = "INBOUND"
   ip_address                     = local.ip_address_obj
@@ -118,7 +119,7 @@ module "resolver_endpoint_out" {
   depends_on                     = [aws_route53_zone.this]
   source                         = "terraform-aws-modules/route53/aws//modules/resolver-endpoint"
   version                        = "~> 6.3"
-  create                         = var.is_hub
+  create                         = local.create_resolver
   name                           = "rslvr-out-${local.system_name}"
   direction                      = "OUTBOUND"
   ip_address                     = local.ip_address_obj
