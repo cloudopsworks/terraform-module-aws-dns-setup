@@ -1,20 +1,20 @@
 ## Requirements
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.3 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 6.35 |
 
 ## Providers
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 6.35 |
 
 ## Modules
 
 | Name | Source | Version |
-|------|--------|---------|
+| ---- | ------ | ------- |
 | <a name="module_resolver_endpoint_in"></a> [resolver\_endpoint\_in](#module\_resolver\_endpoint\_in) | terraform-aws-modules/route53/aws//modules/resolver-endpoint | ~> 6.3 |
 | <a name="module_resolver_endpoint_out"></a> [resolver\_endpoint\_out](#module\_resolver\_endpoint\_out) | terraform-aws-modules/route53/aws//modules/resolver-endpoint | ~> 6.3 |
 | <a name="module_tags"></a> [tags](#module\_tags) | cloudopsworks/tags/local | 1.0.10 |
@@ -22,7 +22,7 @@
 ## Resources
 
 | Name | Type |
-|------|------|
+| ---- | ---- |
 | [aws_ram_principal_association.custom_inbound_rules](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ram_principal_association) | resource |
 | [aws_ram_principal_association.inbound_rules](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ram_principal_association) | resource |
 | [aws_ram_resource_association.custom_inbound_rules](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ram_resource_association) | resource |
@@ -42,7 +42,7 @@
 ## Inputs
 
 | Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
+| ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_association_zone_ids"></a> [association\_zone\_ids](#input\_association\_zone\_ids) | (Optional) Set of existing Route53 private zone IDs to associate with vpc\_id. Zones created by this module are associated automatically and should not be listed. (Default: []) | `set(string)` | `[]` | no |
 | <a name="input_custom_resolver_rules"></a> [custom\_resolver\_rules](#input\_custom\_resolver\_rules) | (Optional) Map of custom Route53 Resolver rules to create, keyed by rule name. Each value accepts domain\_name, rule\_type, addresses and associate\_vpc. Only applied when is\_hub is true. (Default: {}) | `any` | `{}` | no |
 | <a name="input_dns_vpc"></a> [dns\_vpc](#input\_dns\_vpc) | (Optional) Remote VPC authorized to associate with the private zones created here. When vpc\_id is empty no association authorization is emitted. (Default: {vpc\_id = "", vpc\_region = ""}) | <pre>object({<br/>    vpc_id     = optional(string, "")<br/>    vpc_region = optional(string, "us-east-1")<br/>  })</pre> | <pre>{<br/>  "vpc_id": "",<br/>  "vpc_region": ""<br/>}</pre> | no |
@@ -62,7 +62,7 @@
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ---- | ----------- |
 | <a name="output_custom_resolver_rules"></a> [custom\_resolver\_rules](#output\_custom\_resolver\_rules) | Route53 Resolver rules built from `custom_resolver_rules`, keyed by rule name under the `inbound` key. Empty when `is_hub` is false. |
 | <a name="output_dns_vpc"></a> [dns\_vpc](#output\_dns\_vpc) | Networking context the DNS resources were deployed into: VPC id, the region resolved from the provider, VPC CIDR block and the subnets used for the resolver ENIs. |
 | <a name="output_ram"></a> [ram](#output\_ram) | AWS RAM sharing state for the resolver rules exported by this hub: resource shares, resource associations and principal associations for both zone-derived and custom rules. Consumed by spoke deployments through their `shared` variable. |
