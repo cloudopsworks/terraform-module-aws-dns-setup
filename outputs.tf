@@ -137,7 +137,7 @@ output "dns_vpc" {
   description = "Networking context the DNS resources were deployed into: VPC id, the region resolved from the provider, VPC CIDR block and the subnets used for the resolver ENIs."
   value = {
     vpc_id         = var.vpc_id
-    vpc_region     = data.aws_region.current.id
+    vpc_region     = data.aws_region.current.region
     vpc_cidr_block = var.vpc_cidr_block
     subnet_ids     = var.subnet_ids
   }
